@@ -10,7 +10,7 @@ OCM_API_KEY = 'f10c79d2-e68d-423c-ac00-d318a2845c78'
 
 @app.route('/mapa')
 def ver_mapa():
-    return render_template('mapa.html')
+    return render_template('mapa.html') # CAMBIA ESTO por el nombre correcto de tu plantilla HTML
 
 @app.route('/api/estaciones')
 def obtener_estaciones():
