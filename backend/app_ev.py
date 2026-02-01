@@ -1,16 +1,18 @@
 from flask import Flask, render_template, jsonify, request
 import sqlite3
+import os
 
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=True)
 
 def get_db():
-    conn = sqlite3.connect('vehiculos_ev.db')
+    db_path = os.path.join(app.instance_path, 'vehiculos_ev.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row  # Permite acceder a columnas por nombre
     return conn
 
 @app.route('/')
 def inicio():
-    return render_template('index.html')
+    return render_template('index.html') # cambia 'index.html' por tu plantilla principal
 
 # API 1: Obtener lista de marcas únicas
 @app.route('/api/marcas')
