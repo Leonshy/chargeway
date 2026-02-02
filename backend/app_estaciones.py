@@ -67,7 +67,7 @@ OCM_API_KEY = 'f10c79d2-e68d-423c-ac00-d318a2845c78'  # Tu key de OpenChargeMap
 def ver_mapa():
 
     # Crear mapa centrado en Asunción
-    m = folium.Map(location=(-25.2867,-57.6470), zoom_start=10)
+    m = folium.Map(location=(-25.2867,-57.6470), zoom_start=12)
     
     # Traer estaciones de carga
     url = "https://api.openchargemap.io/v3/poi/"
