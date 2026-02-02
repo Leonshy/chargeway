@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-export default function Header() {
+export default function Header({ onLoginClick }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -19,7 +19,7 @@ export default function Header() {
 
       {/* Lado derecho: login */}
       <div className="header-right">
-        <button>Login</button>
+        <button onClick={onLoginClick}>Login</button>
       </div>
 
       {/* Menú desplegable */}
