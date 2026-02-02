@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Header from "./components/header";
+import Login from "./components/login";
 
 function App() {
   const [mapaHTML, setMapaHTML] = useState("");
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     // Endpoint de Flask que devuelve el HTML del mapa
@@ -13,21 +15,26 @@ function App() {
   }, []);
 
   return (
-    <div className="relative">
-      <Header />
+    <div>
+      <Header onLoginClick={() => setShowLogin(true)} />
 
-      <section className="relative w-full h-[80vh]">
+      <section>
         <div
           id="mapa"
-          className="w-full h-full"
           dangerouslySetInnerHTML={{ __html: mapaHTML }}
         ></div>
 
-        <button className="find-station-button absolute bottom-4 right-4 p-2 bg-blue-500 text-white rounded">
+        <button className="find-station-button">
           Encontrar Estación
         </button>
       </section>
+
+      {/* MODAL LOGIN */}
+      {showLogin && (
+      <Login onClose={() => setShowLogin(false)} />)}
+
     </div>
+      
   );
 }
 
