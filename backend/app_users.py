@@ -1,10 +1,11 @@
 # app_users.py
 
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash  # Para hashear contraseñas
 import os
+
 
 app = Flask(__name__)
 # Obtiene la ruta del directorio donde está este script
