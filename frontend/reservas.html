@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reserva de Conector</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 40px auto;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    select, input, button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+    }
+
+    button {
+      margin-top: 20px;
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Reservar Conector</h2>
+
+  <!-- Fecha -->
+  <label for="date">Fecha</label>
+  <input type="date" id="date">
+
+  <!-- Horario -->
+  <label for="time">Horario</label>
+  <select id="time"></select>
+
+  <!-- Datos fijos por ahora (luego serán dinámicos) -->
+  <input type="hidden" id="connector_id" value="1">
+  <input type="hidden" id="user_id" value="99">
+
+  <button type="button" onclick="submitReservation()">Reservar</button>
+
+  <div id="result"></div>
+
+  <script>
+    console.log("reservas.html cargado correctamente");
+
+    // --------------------------------------------------
+    // CONFIGURAR FECHAS PERMITIDAS (HOY + 3 DÍAS)
+    // --------------------------------------------------
+
+    const dateInput = document.getElementById("date");
+
+    const today = new Date();
+    const maxDate = new Date();
+    maxDate.setDate(today.getDate() + 3);
+
+    const formatDate = d => d.toISOString().split("T")[0];
+
+    dateInput.min = formatDate(today);
+    dateInput.max = formatDate(maxDate);
+
+    // Seleccionamos hoy por defecto
+    dateInput.value = formatDate(today);
+
+    // --------------------------------------------------
+    // GENERAR HORARIOS DE 30 MIN (00:00 A 23:59)
+    // --------------------------------------------------
+
+    const timeSelect = document.getElementById("time");
+    let firstOption = true;
+
+    for (let hour = 0; hour < 24; hour++) {
+      for (let min = 0; min < 60; min += 30) {
+
+        const startHour = String(hour).padStart(2, "0");
+        const startMin = String(min).padStart(2, "0");
+
+        const end = new Date(0, 0, 0, hour, min + 29);
+        const endHour = String(end.getHours()).padStart(2, "0");
+        const endMin = String(end.getMinutes()).padStart(2, "0");
+
+        const option = document.createElement("option");
+        option.value = `${startHour}:${startMin}`;
+        option.text = `${startHour}:${startMin} - ${endHour}:${endMin}`;
+
+        // 👇 Seleccionamos el primer horario por defecto
+        if (firstOption) {
+          option.selected = true;
+          firstOption = false;
+        }
+
+        timeSelect.appendChild(option);
+      }
+    }
+
+    // --------------------------------------------------
+    // ENVIAR RESERVA AL BACKEND
+    // --------------------------------------------------
+
+    async function submitReservation() {
+      const date = dateInput.value;
+      const time = timeSelect.value;
+
+      if (!date || !time) {
+        alert("Seleccioná fecha y horario");
+        return;
+      }
+
+      // Creamos la fecha completa de inicio
+      const startDate = new Date(`${date}T${time}`);
+
+      // Clonamos la fecha y sumamos 30 minutos
+      const endDate = new Date(startDate);
+      endDate.setMinutes(endDate.getMinutes() + 30);
+
+      // Formato YYYY-MM-DDTHH:MM
+      const startTime = startDate.toISOString().slice(0, 16);
+      const endTime = endDate.toISOString().slice(0, 16);
+
+      const payload = {
+        connector_id: Number(document.getElementById("connector_id").value),
+        user_id: Number(document.getElementById("user_id").value),
+        start_time: startTime,
+        end_time: endTime
+      };
+
+      try {
+        const res = await fetch("http://127.0.0.1:5000/api/reserve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById("result").innerText =
+            "✅ Reserva creada correctamente";
+        } else {
+          document.getElementById("result").innerText =
+            "❌ " + (data.error || "Error al reservar");
+        }
+
+      } catch (err) {
+        console.error("Error en fetch:", err);
+        document.getElementById("result").innerText =
+          "❌ Error de conexión con el servidor";
+      }
+    }
+  </script>
+
+</body>
+</html>
