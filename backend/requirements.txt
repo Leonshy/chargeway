@@ -1,2 +1,5 @@
-flask
+
 requests
+Python 3.11.9
+Flask 3.1.2
+Werkzeug 3.1.5
