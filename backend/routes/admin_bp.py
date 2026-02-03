@@ -7,9 +7,9 @@ admin_bp = Blueprint('admin_bp', __name__)
 # Configuración de las bases de datos
 # NOTA: Verifica que el nombre de 'table' coincida con tu base de datos
 DB_MAP = {
-    'usuarios': {'file': 'users.db', 'table': 'user'},    # Cambiado a 'user' (común en SQLAlchemy)
+    'usuarios': {'file': 'chargeway.db', 'table': 'users'},    # Cambiado a 'user' (común en SQLAlchemy)
     'estaciones': {'file': 'station.db', 'table': 'stations'},
-    'reservas': {'file': 'reservas.db', 'table': 'reservas'},
+    'reservas': {'file': 'chargeway.db', 'table': 'reservas'},
     'vehiculos': {'file': 'vehiculos_ev.db', 'table': 'autos'},
     'conectores': {'file': 'conectores.db', 'table': 'conectores'}
 }
