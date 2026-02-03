@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request, session
 from db import db
 from datetime import datetime
+
 from models.reserva import Reserva
+from models.user import User
 
 reservas_bp = Blueprint("reservas_bp", __name__, url_prefix="/api/reservas")
 
@@ -14,7 +16,8 @@ def obtener_reservas():
 
     try:
         reservas = (
-            Reserva.query.filter_by(user_id=session["user_id"])
+            Reserva.query
+            .filter_by(user_id=session["user_id"])
             .order_by(Reserva.fecha.desc())
             .all()
         )
@@ -25,24 +28,30 @@ def obtener_reservas():
 
 @reservas_bp.route("/", methods=["POST"])
 def crear_reserva():
-    """Crear una nueva reserva"""
+    """Crear una nueva reserva (sin romper contrato con frontend)"""
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
+
+    # 🔹 FASE 4.2 (REGULADA):
+    # Validar que el usuario exista realmente en la base de datos
+    user = User.query.get(session["user_id"])
+    if not user:
+        return jsonify({"error": "Usuario inválido"}), 400
 
     try:
         data = request.get_json()
 
-        # Validar datos requeridos
+        # Validar datos requeridos (SE MANTIENE)
         required_fields = ["estacion_id", "fecha", "hora_inicio", "duracion"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Falta el campo: {field}"}), 400
 
-        # Convertir fecha y hora
+        # Convertir fecha y hora (SE MANTIENE)
         fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
         hora_inicio = datetime.strptime(data["hora_inicio"], "%H:%M").time()
 
-        # Crear reserva
+        # Crear reserva (SE MANTIENE)
         reserva = Reserva(
             user_id=session["user_id"],
             estacion_id=data["estacion_id"],
@@ -59,7 +68,10 @@ def crear_reserva():
 
         return (
             jsonify(
-                {"message": "Reserva creada exitosamente", "reserva": reserva.to_dict()}
+                {
+                    "message": "Reserva creada exitosamente",
+                    "reserva": reserva.to_dict(),
+                }
             ),
             201,
         )
@@ -79,8 +91,10 @@ def obtener_reserva(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id, user_id=session["user_id"]
+            id=reserva_id,
+            user_id=session["user_id"]
         ).first()
+
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
@@ -97,8 +111,10 @@ def cancelar_reserva(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id, user_id=session["user_id"]
+            id=reserva_id,
+            user_id=session["user_id"]
         ).first()
+
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
@@ -106,7 +122,10 @@ def cancelar_reserva(reserva_id):
         db.session.commit()
 
         return jsonify(
-            {"message": "Reserva cancelada exitosamente", "reserva": reserva.to_dict()}
+            {
+                "message": "Reserva cancelada exitosamente",
+                "reserva": reserva.to_dict(),
+            }
         )
     except Exception as e:
         db.session.rollback()
@@ -121,14 +140,15 @@ def actualizar_reserva(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id, user_id=session["user_id"]
+            id=reserva_id,
+            user_id=session["user_id"]
         ).first()
+
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
         data = request.get_json()
 
-        # Actualizar campos si están presentes
         if "fecha" in data:
             reserva.fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
         if "hora_inicio" in data:
