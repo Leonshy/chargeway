@@ -18,6 +18,8 @@ class Reserva(db.Model):
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+
 
     # Relación con User
     user = db.relationship("User", backref=db.backref("reservas", lazy=True))
@@ -25,6 +27,7 @@ class Reserva(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "codigo": self.codigo,
             "user_id": self.user_id,
             "estacion_id": self.estacion_id,
             "estacion_nombre": self.estacion_nombre,

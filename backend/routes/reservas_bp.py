@@ -5,6 +5,15 @@ from datetime import datetime
 from models.reserva import Reserva
 from models.user import User
 
+import random
+import string
+
+# funcion para generar código único de reserva
+def generar_codigo_reserva(longitud=8):
+    caracteres = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(caracteres, k=longitud))
+
+
 reservas_bp = Blueprint("reservas_bp", __name__, url_prefix="/api/reservas")
 
 
@@ -32,7 +41,6 @@ def crear_reserva():
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
 
-    # 🔹 FASE 4.2 (REGULADA):
     # Validar que el usuario exista realmente en la base de datos
     user = User.query.get(session["user_id"])
     if not user:
@@ -51,7 +59,10 @@ def crear_reserva():
         fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
         hora_inicio = datetime.strptime(data["hora_inicio"], "%H:%M").time()
 
-        # Crear reserva (SE MANTIENE)
+        # generar código único 
+        codigo_reserva = generar_codigo_reserva()
+
+        # Crear reserva (SE MANTIENE + código)
         reserva = Reserva(
             user_id=session["user_id"],
             estacion_id=data["estacion_id"],
@@ -61,6 +72,7 @@ def crear_reserva():
             hora_inicio=hora_inicio,
             duracion_horas=float(data["duracion"]),
             estado="activa",
+            codigo=codigo_reserva,   # 👈 nuevo campo
         )
 
         db.session.add(reserva)
@@ -70,7 +82,7 @@ def crear_reserva():
             jsonify(
                 {
                     "message": "Reserva creada exitosamente",
-                    "reserva": reserva.to_dict(),
+                    "reserva": reserva.to_dict(),  # incluye el código
                 }
             ),
             201,
