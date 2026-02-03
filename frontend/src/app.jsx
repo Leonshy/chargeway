@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import Header from "./components/header";
-import Login from "./components/Login";
+import Login from "./components/login";
 import MapComponent from "./components/MapComponent";
 import ReservaModal from "./components/ReservaModal";
 import MisReservas from "./components/MisReservas";
+import VehiculosEV from "./components/vehiculo"; // ← NUEVO IMPORT
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [showReservas, setShowReservas] = useState(false);
+  const [showVehiculos, setShowVehiculos] = useState(false); // ← NUEVO ESTADO
   const [showReservaModal, setShowReservaModal] = useState(false);
   const [estacionSeleccionada, setEstacionSeleccionada] = useState(null);
   const [user, setUser] = useState(null);
@@ -100,6 +102,7 @@ function App() {
       <Header
         onLoginClick={() => setShowLogin(true)}
         onReservasClick={() => setShowReservas(true)}
+        onVehiculosClick={() => setShowVehiculos(true)} // ← NUEVA PROP
         user={user}
         onLogout={handleLogout}
       />
@@ -110,10 +113,11 @@ function App() {
         width: '100%',
         overflow: 'hidden'
       }}>
-        <MapComponent
-          user={user}
+      <MapComponent
+        user={user}
+        onReserveClick={handleReserveClick}
+      />
 
-        />
       </section>
 
       {/* MODAL LOGIN */}
@@ -141,6 +145,14 @@ function App() {
         <MisReservas
           user={user}
           onClose={() => setShowReservas(false)}
+        />
+      )}
+
+      {/* MODAL MIS VEHÍCULOS - NUEVO */}
+      {showVehiculos && user && (
+        <VehiculosEV
+          user={user}
+          onClose={() => setShowVehiculos(false)}
         />
       )}
     </div>

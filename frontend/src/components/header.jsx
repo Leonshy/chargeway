@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
-function Header({ onLoginClick, onReservasClick, user, onLogout }) {
+function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const menuRef = useRef(null);
@@ -33,14 +33,10 @@ function Header({ onLoginClick, onReservasClick, user, onLogout }) {
       }
     };
 
-    // Esperar un tick antes de agregar el listener
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-    }, 0);
+    document.addEventListener('click', handleClickOutside, true);
 
     return () => {
-      clearTimeout(timeoutId);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside, true);
     };
   }, [menuOpen]);
 
@@ -54,6 +50,13 @@ function Header({ onLoginClick, onReservasClick, user, onLogout }) {
     setMenuOpen(false);
     if (onReservasClick) {
       onReservasClick();
+    }
+  };
+
+  const handleVehiculosClick = () => {
+    setMenuOpen(false);
+    if (onVehiculosClick) {
+      onVehiculosClick();
     }
   };
 
@@ -84,9 +87,11 @@ function Header({ onLoginClick, onReservasClick, user, onLogout }) {
         <div ref={menuRef} className="menu-dropdown">
           <p onClick={() => setMenuOpen(false)}>🗺️ Mapa</p>
           {user && (
-            <p onClick={handleReservasClick}>📋 Mis Reservas</p>
+            <>
+              <p onClick={handleReservasClick}>📋 Mis Reservas</p>
+              <p onClick={handleVehiculosClick}>🚗 Mis Vehículos</p>
+            </>
           )}
-          <p onClick={() => setMenuOpen(false)}>🚗 Vehículos EV</p>
           <p onClick={() => setMenuOpen(false)}>ℹ️ Acerca de</p>
         </div>
       )}
