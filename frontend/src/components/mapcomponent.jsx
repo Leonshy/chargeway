@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -40,6 +40,33 @@ const createCustomIcon = (color) => {
         popupAnchor: [0, -30]
     });
 };
+
+// --- NUEVO COMPONENTE: Maneja el clic del usuario ---
+function MarcadorUsuario() {
+    const [posicion, setPosicion] = useState(null);
+
+    // useMapEvents permite acceder a los eventos del mapa
+    useMapEvents({
+        click(e) {
+            setPosicion(e.latlng); // Guardamos la latitud y longitud del clic
+        },
+    });
+
+    // Si no hay posición (aún no hizo clic), no renderizamos nada
+    if (posicion === null) return null;
+
+    // Usamos un color AZUL (#007bff) para diferenciarlo de las estaciones
+    return (
+        <Marker position={posicion} icon={createCustomIcon('#007bff')}>
+            <Popup>
+                <div style={{ textAlign: 'center' }}>
+                    <b>📍 Ubicación seleccionada</b><br />
+                    {posicion.lat.toFixed(5)}, {posicion.lng.toFixed(5)}
+                </div>
+            </Popup>
+        </Marker>
+    );
+}
 
 function MapComponent({ user, onReserveClick }) {
     const [estaciones, setEstaciones] = useState([]);
@@ -156,6 +183,7 @@ function MapComponent({ user, onReserveClick }) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            <MarcadorUsuario />
 
             {estaciones.map((estacion) => {
                 const info = estacion.AddressInfo;
