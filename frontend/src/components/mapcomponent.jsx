@@ -3,6 +3,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaf
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// --- IMPORTACIÓN NUEVA ---
+import RutearCamino from './rutearCamino'; 
+
 // Fix para los iconos de Leaflet en React
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -41,17 +44,17 @@ const createCustomIcon = (color) => {
     });
 };
 
-// --- MODIFICADO: Ahora recibe props para elevar el estado ---
-function MarcadorUsuario({ posicion, setPosicion }) {
+// --- MODIFICADO: Agregamos 'limpiarRuta' para borrar la línea si el usuario se mueve ---
+function MarcadorUsuario({ posicion, setPosicion, limpiarRuta }) {
     useMapEvents({
         click(e) {
             setPosicion(e.latlng); // Guardamos la latitud y longitud del clic
+            if (limpiarRuta) limpiarRuta(); // Si mueves tu posición, borramos la ruta vieja
         },
     });
 
     if (posicion === null) return null;
 
-    // Usamos un color AZUL (#007bff) para diferenciarlo de las estaciones
     return (
         <Marker position={posicion} icon={createCustomIcon('#007bff')}>
             <Popup>
@@ -80,10 +83,12 @@ function MapComponent({ user, onReserveClick }) {
     const [estaciones, setEstaciones] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    // --- NUEVOS ESTADOS Y REFERENCIAS ---
-    const [userPos, setUserPos] = useState(null); // Estado del marcador usuario
-    const mapRef = useRef(null); // Referencia al mapa
-    const markersRef = useRef({}); // Referencias a los marcadores de estaciones
+    // Estados y Referencias
+    const [userPos, setUserPos] = useState(null); 
+    const [destinoRuta, setDestinoRuta] = useState(null); // --- NUEVO ESTADO PARA LA RUTA ---
+    
+    const mapRef = useRef(null); 
+    const markersRef = useRef({}); 
 
     useEffect(() => {
         fetchEstaciones();
@@ -101,7 +106,7 @@ function MapComponent({ user, onReserveClick }) {
         }
     };
 
-    // --- NUEVA FUNCIÓN: Buscar estación más cercana ---
+    // --- LÓGICA MODIFICADA: Buscar, Mover y TRAZAR RUTA ---
     const buscarMasCercana = () => {
         if (!userPos) {
             alert("⚠️ Primero haz clic en el mapa para marcar tu ubicación.");
@@ -128,16 +133,23 @@ function MapComponent({ user, onReserveClick }) {
             const lat = masCercana.AddressInfo.Latitude;
             const lng = masCercana.AddressInfo.Longitude;
 
-            // 1. Mover el mapa (FlyTo)
-            mapRef.current.flyTo([lat, lng], 16, { duration: 1.5 });
+            // 1. Establecer destino de ruta
+            setDestinoRuta({ lat, lng });
 
-            // 2. Abrir el Popup automáticamente después de la animación
+            // 2. HACER ZOOM A LA ESTACIÓN (Modificado para enfoque total)
+            // Usamos un zoom de 17 para que se vea bien la información
+            mapRef.current.flyTo([lat, lng], 17, { 
+                duration: 2,
+                easeLinearity: 0.25 
+            });
+
+            // 3. Abrir el Popup automáticamente
             setTimeout(() => {
                 const marker = markersRef.current[masCercana.ID];
                 if (marker) {
                     marker.openPopup();
                 }
-            }, 1600);
+            }, 2100); // Esperamos un poco más para que termine el desplazamiento
         }
     };
 
@@ -172,11 +184,7 @@ function MapComponent({ user, onReserveClick }) {
 
                         return (
                             <li key={idx} style={{
-                                marginBottom: '8px',
-                                padding: '8px',
-                                background: '#f9f9f9',
-                                borderRadius: '5px',
-                                fontSize: '0.85rem'
+                                marginBottom: '8px', padding: '8px', background: '#f9f9f9', borderRadius: '5px', fontSize: '0.85rem'
                             }}>
                                 <strong>{connType}</strong> ({quantity}x)
                                 <br />
@@ -198,7 +206,6 @@ function MapComponent({ user, onReserveClick }) {
             alert('Por favor, inicia sesión para hacer una reserva');
             return;
         }
-
         const info = estacion.AddressInfo || {};
         onReserveClick({
             id: estacion.ID,
@@ -211,14 +218,7 @@ function MapComponent({ user, onReserveClick }) {
 
     if (loading) {
         return (
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100%',
-                color: '#00c853',
-                fontSize: '1.2rem'
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#00c853', fontSize: '1.2rem' }}>
                 <i className="fa-solid fa-spinner fa-spin"></i>
                 <span style={{ marginLeft: '0.5rem' }}>Cargando estaciones...</span>
             </div>
@@ -226,36 +226,41 @@ function MapComponent({ user, onReserveClick }) {
     }
 
     return (
-        // Contenedor relativo para posicionar el botón sobre el mapa
         <div style={{ position: 'relative', height: '100%', width: '100%' }}>
             <MapContainer
                 center={[-25.2844487, -57.5631777]}
                 zoom={13}
                 style={{ height: '100%', width: '100%' }}
                 zoomControl={true}
-                ref={mapRef} // Referencia conectada
+                ref={mapRef}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 
-                {/* Pasamos userPos y setUserPos al componente hijo */}
-                <MarcadorUsuario posicion={userPos} setPosicion={setUserPos} />
+                {/* --- COMPONENTE DE RUTA (Solo se activa si hay usuario y destino) --- */}
+                {userPos && destinoRuta && (
+                    <RutearCamino inicio={userPos} fin={destinoRuta} />
+                )}
+
+                {/* MarcadorUsuario: Pasamos la función para limpiar ruta al mover el pin */}
+                <MarcadorUsuario 
+                    posicion={userPos} 
+                    setPosicion={setUserPos} 
+                    limpiarRuta={() => setDestinoRuta(null)}
+                />
 
                 {estaciones.map((estacion) => {
                     const info = estacion.AddressInfo;
                     if (!info || !info.Latitude || !info.Longitude) return null;
-
                     const status = estacion.StatusType?.Title || 'Desconocido';
                     const operator = estacion.OperatorInfo?.Title || 'Operador desconocido';
                     const usageType = estacion.UsageType?.Title || 'No especificado';
                     const numPoints = estacion.NumberOfPoints || 0;
-
                     let direccionCompleta = info.AddressLine1 || 'Dirección no disponible';
                     if (info.Town) direccionCompleta += `, ${info.Town}`;
                     if (info.StateOrProvince) direccionCompleta += `, ${info.StateOrProvince}`;
-
                     const iconColor = getIconColor(status);
 
                     return (
@@ -263,72 +268,27 @@ function MapComponent({ user, onReserveClick }) {
                             key={estacion.ID}
                             position={[info.Latitude, info.Longitude]}
                             icon={createCustomIcon(iconColor)}
-                            // Guardamos referencia de cada marcador por su ID
                             ref={(el) => (markersRef.current[estacion.ID] = el)}
                         >
                             <Popup maxWidth={350} minWidth={300}>
                                 <div style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                                    <h3 style={{
-                                        margin: '0 0 10px 0',
-                                        color: '#00c853',
-                                        borderBottom: '2px solid #00c853',
-                                        paddingBottom: '5px',
-                                        fontSize: '1.1rem'
-                                    }}>
+                                    <h3 style={{ margin: '0 0 10px 0', color: '#00c853', borderBottom: '2px solid #00c853', paddingBottom: '5px', fontSize: '1.1rem' }}>
                                         ⚡ {info.Title || 'Estación sin nombre'}
                                     </h3>
-
                                     <div style={{ marginBottom: '10px' }}>
-                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}>
-                                            <strong>📍 Dirección:</strong><br />
-                                            {direccionCompleta}
-                                        </p>
-                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}>
-                                            <strong>🏢 Operador:</strong> {operator}
-                                        </p>
-                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}>
-                                            <strong>🔌 Puntos de carga:</strong> {numPoints}
-                                        </p>
-                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}>
-                                            <strong>📊 Estado:</strong>{' '}
-                                            <span style={{ color: iconColor, fontWeight: 'bold' }}>
-                                                {status}
-                                            </span>
-                                        </p>
-                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}>
-                                            <strong>🚪 Acceso:</strong> {usageType}
-                                        </p>
+                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}><strong>📍 Dirección:</strong><br />{direccionCompleta}</p>
+                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}><strong>🏢 Operador:</strong> {operator}</p>
+                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}><strong>🔌 Puntos de carga:</strong> {numPoints}</p>
+                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}><strong>📊 Estado:</strong> <span style={{ color: iconColor, fontWeight: 'bold' }}>{status}</span></p>
+                                        <p style={{ margin: '5px 0', fontSize: '0.9rem' }}><strong>🚪 Acceso:</strong> {usageType}</p>
                                     </div>
-
                                     {renderConectores(estacion.Connections)}
-
                                     {estacion.GeneralComments && (
-                                        <p style={{
-                                            margin: '10px 0',
-                                            fontSize: '0.85rem',
-                                            color: '#666',
-                                            fontStyle: 'italic'
-                                        }}>
-                                            <strong>💬 Comentarios:</strong> {estacion.GeneralComments}
-                                        </p>
+                                        <p style={{ margin: '10px 0', fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}><strong>💬 Comentarios:</strong> {estacion.GeneralComments}</p>
                                     )}
-
                                     <button
                                         onClick={() => handleReservar(estacion)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px',
-                                            background: '#4CAF50',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '5px',
-                                            fontSize: '1rem',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            marginTop: '15px',
-                                            transition: 'background 0.3s',
-                                            fontFamily: 'Montserrat, sans-serif'
-                                        }}
+                                        style={{ width: '100%', padding: '12px', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px', transition: 'background 0.3s', fontFamily: 'Montserrat, sans-serif' }}
                                         onMouseOver={(e) => e.target.style.background = '#45a049'}
                                         onMouseOut={(e) => e.target.style.background = '#4CAF50'}
                                     >
@@ -341,35 +301,20 @@ function MapComponent({ user, onReserveClick }) {
                 })}
             </MapContainer>
 
-            {/* --- BOTÓN FLOTANTE INFERIOR --- */}
+            {/* --- BOTÓN FLOTANTE --- */}
             <button
                 onClick={buscarMasCercana}
                 style={{
-                    position: 'absolute',
-                    bottom: '25px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    zIndex: 1000,
-                    background: '#007bff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50px',
-                    padding: '12px 25px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease',
-                    whiteSpace: 'nowrap'
+                    position: 'absolute', bottom: '25px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+                    background: '#007bff', color: 'white', border: 'none', borderRadius: '50px', padding: '12px 25px',
+                    fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s ease', whiteSpace: 'nowrap'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'translateX(-50%) scale(1)'}
             >
-                <i className="fa-solid fa-location-crosshairs"></i>
-                Buscar Estación Más Cercana
+                <i className="fa-solid fa-route"></i>
+                Buscar y Trazar Ruta Más Cercana
             </button>
         </div>
     );
