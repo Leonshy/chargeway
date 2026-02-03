@@ -1,33 +1,31 @@
 import React, { useState, useEffect } from "react";
 import Header from "./components/header";
-<<<<<<< HEAD
-import Login from "./components/Login";
+import Login from "./components/Login"; // Asegúrate que el nombre del archivo coincida (mayúscula/minúscula)
 import MapComponent from "./components/mapcomponent";
-import ReservaModal from "./components/ReservaModal"; // Asegúrate que el nombre coincida con tu archivo
-import MisReservas from "./components/MisReservas";   // Asegúrate que el nombre coincida con tu archivo
-import AdminPanel from "./adminPanel";     // <--- 1. IMPORTAR ADMIN
-
-// --- CONFIGURACIÓN: CORREO DEL ADMINISTRADOR ---
-const ADMIN_EMAIL = "admin@chargeway.com"; // <--- CAMBIA ESTO POR TU EMAIL REAL
-=======
-import Login from "./components/login";
-import MapComponent from "./components/MapComponent";
 import ReservaModal from "./components/ReservaModal";
 import MisReservas from "./components/MisReservas";
-import VehiculosEV from "./components/vehiculo"; // ← NUEVO IMPORT
->>>>>>> 7ad02abede2dd237b1f228f39e1ca6989e39eb0a
+import AdminPanel from "./adminPanel"; // Importamos el Admin
+import VehiculosEV from "./components/vehiculo";   // Importamos la gestión de Vehículos
+
+// --- CONFIGURACIÓN: CORREO DE ADMINISTRADOR ---
+const ADMIN_EMAIL = "admin@chargeway.com"; // <--- CAMBIA ESTO POR TU EMAIL REAL
 
 function App() {
+  // --- ESTADOS ---
   const [showLogin, setShowLogin] = useState(false);
   const [showReservas, setShowReservas] = useState(false);
-  const [showVehiculos, setShowVehiculos] = useState(false); // ← NUEVO ESTADO
+  const [showVehiculos, setShowVehiculos] = useState(false); // Estado para modal vehículos
   const [showReservaModal, setShowReservaModal] = useState(false);
   const [estacionSeleccionada, setEstacionSeleccionada] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [vistaActual, setVistaActual] = useState('mapa');
+  
+  // Estado para controlar si vemos el Mapa o el Admin
+  const [vistaActual, setVistaActual] = useState('mapa'); 
 
+  // --- EFECTOS ---
   useEffect(() => {
+    // Cargar usuario del almacenamiento local al iniciar
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -35,14 +33,15 @@ function App() {
     setLoading(false);
   }, []);
 
+  // --- MANEJADORES ---
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
     setShowLogin(false);
     
-    // Si el que entra NO es admin, forzamos la vista al mapa por seguridad
+    // Seguridad: Si no es admin, forzar vista mapa
     if (userData.email !== ADMIN_EMAIL) {
-        setVistaActual('mapa');
+      setVistaActual('mapa');
     }
   };
 
@@ -50,7 +49,8 @@ function App() {
     setUser(null);
     localStorage.removeItem('user');
     setShowReservas(false);
-    setVistaActual('mapa'); // Al salir, volver al mapa
+    setShowVehiculos(false);
+    setVistaActual('mapa'); // Al salir, volver siempre al mapa
   };
 
   const handleReservarClick = (estacion) => {
@@ -62,18 +62,17 @@ function App() {
     }
   };
 
-  // Verificamos si es admin para usarlo en el renderizado
+  // Verificar si es administrador
   const isAdmin = user && user.email === ADMIN_EMAIL;
 
   if (loading) {
-    return <div style={{ color: 'green', padding: '20px' }}>Cargando Chargeway...</div>;
+    return <div style={{ color: 'green', padding: '20px', textAlign: 'center' }}>Cargando Chargeway...</div>;
   }
 
   return (
-<<<<<<< HEAD
     <div style={{ height: '100vh', overflow: 'hidden', position: 'relative' }}>
       
-      {/* --- BOTÓN DE ADMIN (SOLO VISIBLE PARA EL ADMIN) --- */}
+      {/* --- BOTÓN FLOTANTE ADMIN (Solo visible si es Admin) --- */}
       {isAdmin && (
           <button 
             onClick={() => setVistaActual(vistaActual === 'mapa' ? 'admin' : 'mapa')}
@@ -86,48 +85,19 @@ function App() {
           >
             {vistaActual === 'mapa' ? '⚙️ Panel Admin' : '🗺️ Volver al Mapa'}
           </button>
-=======
-    <div style={{ height: '100vh', overflow: 'hidden' }}>
-      <Header
-        onLoginClick={() => setShowLogin(true)}
-        onReservasClick={() => setShowReservas(true)}
-        onVehiculosClick={() => setShowVehiculos(true)} // ← NUEVA PROP
-        user={user}
-        onLogout={handleLogout}
-      />
-
-      <section style={{
-        position: 'relative',
-        height: 'calc(100vh - 60px)',
-        width: '100%',
-        overflow: 'hidden'
-      }}>
-      <MapComponent
-        user={user}
-        onReserveClick={handleReserveClick}
-      />
-
-      </section>
-
-      {/* MODAL LOGIN */}
-      {showLogin && (
-        <Login
-          onClose={() => setShowLogin(false)}
-          onLoginSuccess={handleLoginSuccess}
-        />
->>>>>>> 7ad02abede2dd237b1f228f39e1ca6989e39eb0a
       )}
 
-      {/* --- RENDERIZADO PROTEGIDO --- */}
+      {/* --- RENDERIZADO CONDICIONAL: ADMIN vs USUARIO --- */}
       {isAdmin && vistaActual === 'admin' ? (
-        // Solo mostramos el panel si es admin Y está en la vista correcta
+        // VISTA 1: PANEL DE ADMINISTRACIÓN
         <AdminPanel />
       ) : (
-        // Vista normal para todos los demás
+        // VISTA 2: APLICACIÓN PRINCIPAL (Mapa, Header, Modales)
         <>
           <Header
             onLoginClick={() => setShowLogin(true)}
             onReservasClick={() => setShowReservas(true)}
+            onVehiculosClick={() => setShowVehiculos(true)} // Conectamos el botón de vehículos
             user={user}
             onLogout={handleLogout}
           />
@@ -139,6 +109,8 @@ function App() {
             />
           </section>
 
+          {/* --- MODALES --- */}
+          
           {showLogin && (
             <Login
               onClose={() => setShowLogin(false)}
@@ -163,15 +135,15 @@ function App() {
               onClose={() => setShowReservas(false)}
             />
           )}
-        </>
-      )}
 
-      {/* MODAL MIS VEHÍCULOS - NUEVO */}
-      {showVehiculos && user && (
-        <VehiculosEV
-          user={user}
-          onClose={() => setShowVehiculos(false)}
-        />
+          {/* Modal de Vehículos (Solo si hay usuario logueado) */}
+          {showVehiculos && user && (
+            <VehiculosEV
+              user={user}
+              onClose={() => setShowVehiculos(false)}
+            />
+          )}
+        </>
       )}
     </div>
   );
