@@ -6,7 +6,7 @@ class Reserva(db.Model):
     __tablename__ = "reservas"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     estacion_id = db.Column(db.Integer, nullable=False)
     estacion_nombre = db.Column(db.String(200))
     estacion_direccion = db.Column(db.String(300))
@@ -18,6 +18,8 @@ class Reserva(db.Model):
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+
 
     # Relación con User
     user = db.relationship("User", backref=db.backref("reservas", lazy=True))
@@ -25,6 +27,7 @@ class Reserva(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
+            "codigo": self.codigo,
             "user_id": self.user_id,
             "estacion_id": self.estacion_id,
             "estacion_nombre": self.estacion_nombre,
