@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChargeWay</title>
+    <!-- Aquí puedes poner tus estilos CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            background: #1e88e5;
+            color: white;
+            padding: 10px 20px;
+        }
+
+        header img {
+            height: 50px;
+            margin-right: 20px;
+        }
+
+        nav a {
+            color: white;
+            margin-right: 15px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        main {
+            padding: 20px;
+        }
+
+        #map {
+            width: 100%;
+            height: 600px;
+            margin-bottom: 30px;
+        }
+
+        #login {
+            max-width: 400px;
+            margin: auto;
+        }
+
+        #login input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        #login button {
+            width: 100%;
+            padding: 10px;
+            background: #1e88e5;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #login button:hover {
+            background: #1565c0;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 10px;
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header con logo y navegación -->
+    <header>
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ChargeWay Logo">
+        <nav>
+            <a href="/">Mapa</a>
+            <a href="#login">Login</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Mapa -->
+        <section id="map">
+            {{ mapa_html | safe }}
+        </section>
+
+        <!-- Login -->
+        <section id="login">
+            <h2>Iniciar sesión</h2>
+            <form id="login-form">
+                <input type="email" name="email" placeholder="Email" required>
+                <input type="password" name="password" placeholder="Contraseña" required>
+                <button type="submit">Login</button>
+                <div class="message" id="login-message"></div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        // Manejo del login con fetch
+        const form = document.getElementById('login-form');
+        const message = document.getElementById('login-message');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            message.textContent = '';
+
+            const formData = new FormData(form);
+            const data = {
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', // importante para sesiones
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    message.style.color = 'green';
+                    message.textContent = 'Login exitoso';
+                    // Aquí puedes redirigir a otra página si quieres
+                    // window.location.href = '/dashboard';
+                } else {
+                    message.style.color = 'red';
+                    message.textContent = result.error || 'Error en login';
+                }
+            } catch (err) {
+                message.style.color = 'red';
+                message.textContent = 'Error en la conexión';
+            }
+        });
+    </script>
+</body>
+
+</html>
