@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from config import Config
 from db import db
+from flask import render_template
 
 from routes.auth_bp import auth_bp
 from routes.estaciones_bp import estaciones_bp
@@ -57,6 +58,10 @@ def check_auth():
             )
     return jsonify({"authenticated": False})
 
+@app.route("/")
+def index():
+    mapa_html = generar_mapa()
+    return render_template("index.html", mapa_html=mapa_html)
 
 if __name__ == "__main__":
     app.run(debug=True, host="127.0.0.1", port=5000)
