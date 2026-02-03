@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 function Header({ onLoginClick, onReservasClick, user, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const menuRef = useRef(null);
+  const buttonRef = useRef(null);
 
   // Detectar si es móvil
   useEffect(() => {
@@ -18,20 +20,34 @@ function Header({ onLoginClick, onReservasClick, user, onLogout }) {
 
   // Cerrar menú cuando se hace clic fuera
   useEffect(() => {
-    const handleClickOutside = () => {
-      if (menuOpen) setMenuOpen(false);
+    if (!menuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        menuRef.current && 
+        !menuRef.current.contains(event.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
     };
 
-    if (menuOpen) {
-      document.addEventListener('click', handleClickOutside);
-    }
+    // Esperar un tick antes de agregar el listener
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
 
-    return () => document.removeEventListener('click', handleClickOutside);
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [menuOpen]);
 
   const handleMenuClick = (e) => {
+    e.preventDefault();
     e.stopPropagation();
-    setMenuOpen(!menuOpen);
+    setMenuOpen(prev => !prev);
   };
 
   const handleReservasClick = () => {
@@ -46,9 +62,11 @@ function Header({ onLoginClick, onReservasClick, user, onLogout }) {
       <div className="header-left">
         {/* Menú hamburguesa */}
         <button
+          ref={buttonRef}
           className="menu-button"
           onClick={handleMenuClick}
           aria-label="Menú"
+          type="button"
         >
           <span></span>
           <span></span>
@@ -63,7 +81,7 @@ function Header({ onLoginClick, onReservasClick, user, onLogout }) {
 
       {/* Menú desplegable */}
       {menuOpen && (
-        <div className="menu-dropdown" onClick={(e) => e.stopPropagation()}>
+        <div ref={menuRef} className="menu-dropdown">
           <p onClick={() => setMenuOpen(false)}>🗺️ Mapa</p>
           {user && (
             <p onClick={handleReservasClick}>📋 Mis Reservas</p>
