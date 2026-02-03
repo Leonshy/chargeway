@@ -112,24 +112,8 @@ function App() {
       }}>
         <MapComponent
           user={user}
-          onReserveClick={handleReserveClick}
-        />
 
-        {/* Botón flotante para ver reservas */}
-        {user && (
-          <button
-            className="find-station-button"
-            onClick={() => setShowReservas(true)}
-            style={{
-              position: 'absolute',
-              bottom: '2rem',
-              left: '50%',
-              transform: 'translateX(-50%)'
-            }}
-          >
-            📋 Mis Reservas
-          </button>
-        )}
+        />
       </section>
 
       {/* MODAL LOGIN */}
