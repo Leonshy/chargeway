@@ -17,6 +17,7 @@ from routes.estaciones_bp import estaciones_bp
 from routes.ev_bp import ev_bp
 from routes.reservas_bp import reservas_bp
 from routes.users_bp import users_bp
+from routes.admin_bp import admin_bp
 
 # Servicios
 from services.openchargemap import generar_mapa
@@ -47,6 +48,7 @@ def create_app():
     app.register_blueprint(ev_bp)
     app.register_blueprint(reservas_bp)
     app.register_blueprint(users_bp, url_prefix="/api/users")
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
 
     # ---------- RUTAS DIRECTAS ----------
 
