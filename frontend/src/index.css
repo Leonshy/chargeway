@@ -275,6 +275,19 @@ header {
   background-color: #00c853;
 }
 
+header {
+  background-color: #111111;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  position: relative;
+  z-index: 1000; /* Aumentar de 50 a 1000 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  height: 60px;
+}
+
 .menu-dropdown {
   position: absolute;
   top: 60px;
@@ -287,7 +300,9 @@ header {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  z-index: 1001; /* Aumentar a 1001 para estar por encima del header */
   animation: slideDown 0.2s ease-out;
+  pointer-events: auto; /* Asegurar que capture eventos */
 }
 
 .menu-dropdown p {
@@ -295,19 +310,28 @@ header {
   padding: 0.5rem;
   border-radius: 4px;
   transition: background-color 0.2s;
+  margin: 0;
+  user-select: none; /* Evitar selección de texto accidental */
 }
 
 .menu-dropdown p:hover {
   background-color: #333;
 }
 
+/* Asegurar que el mapa esté por debajo del header */
 #mapa {
   width: 100%;
   height: 100%;
   position: relative;
   touch-action: pan-x pan-y;
+  z-index: 1; /* Agregar z-index bajo */
 }
 
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1; /* Asegurar que el mapa esté por debajo */
+}
 /* Asegurar que el mapa de Folium sea responsive */
 #mapa iframe,
 #mapa .folium-map {
