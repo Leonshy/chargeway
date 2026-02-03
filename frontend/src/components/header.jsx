@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-function Header({ onLoginClick, user, onLogout }) {
+function Header({ onLoginClick, onReservasClick, user, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -34,6 +34,13 @@ function Header({ onLoginClick, user, onLogout }) {
     setMenuOpen(!menuOpen);
   };
 
+  const handleReservasClick = () => {
+    setMenuOpen(false);
+    if (onReservasClick) {
+      onReservasClick();
+    }
+  };
+
   return (
     <header>
       <div className="header-left">
@@ -58,8 +65,10 @@ function Header({ onLoginClick, user, onLogout }) {
       {menuOpen && (
         <div className="menu-dropdown" onClick={(e) => e.stopPropagation()}>
           <p onClick={() => setMenuOpen(false)}>🗺️ Mapa</p>
+          {user && (
+            <p onClick={handleReservasClick}>📋 Mis Reservas</p>
+          )}
           <p onClick={() => setMenuOpen(false)}>🚗 Vehículos EV</p>
-          <p onClick={() => setMenuOpen(false)}>📅 Reservas</p>
           <p onClick={() => setMenuOpen(false)}>ℹ️ Acerca de</p>
         </div>
       )}

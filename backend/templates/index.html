@@ -1,25 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChargeWay</title>
-    <!-- Aquí puedes poner tus estilos CSS -->
+    <title>ChargeWay - Encuentra y Reserva Estaciones de Carga</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
         }
 
         header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            background: #1e88e5;
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
             color: white;
-            padding: 10px 20px;
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
         }
 
         header img {
@@ -27,94 +38,473 @@
             margin-right: 20px;
         }
 
+        header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+
         nav a {
             color: white;
-            margin-right: 15px;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        nav a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #user-info {
+            display: none;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #user-info.logged-in {
+            display: flex;
+        }
+
+        #logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        #logout-btn:hover {
+            background: white;
+            color: #1e88e5;
         }
 
         main {
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 20px;
+        }
+
+        .info-banner {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .info-banner h2 {
+            color: #1e88e5;
+            margin-bottom: 10px;
+        }
+
+        .info-banner p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        #map-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
         }
 
         #map {
             width: 100%;
             height: 600px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
         }
 
-        #login {
-            max-width: 400px;
-            margin: auto;
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            text-align: center;
         }
 
-        #login input {
-            width: 100%;
-            padding: 10px;
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
             margin-bottom: 10px;
+            text-transform: uppercase;
         }
 
-        #login button {
+        .stat-card p {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e88e5;
+        }
+
+        #login-section {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #login-section.hidden {
+            display: none;
+        }
+
+        #login-section h2 {
+            color: #1e88e5;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
             width: 100%;
-            padding: 10px;
-            background: #1e88e5;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #1e88e5;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
             color: white;
             border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        #login button:hover {
-            background: #1565c0;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.4);
         }
 
         .message {
             text-align: center;
-            margin-top: 10px;
-            color: red;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+
+        #mis-reservas {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+
+        #mis-reservas.show {
+            display: block;
+        }
+
+        #mis-reservas h2 {
+            color: #1e88e5;
+            margin-bottom: 20px;
+        }
+
+        .reserva-item {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #1e88e5;
+        }
+
+        .reserva-item h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .reserva-item p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .reserva-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-cancel {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #d32f2f;
+        }
+
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .legend h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .legend-color.green {
+            background: #4CAF50;
+        }
+
+        .legend-color.orange {
+            background: #FF9800;
+        }
+
+        .legend-color.gray {
+            background: #9E9E9E;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            nav {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            nav a {
+                text-align: center;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 
 <body>
-
-    <!-- Header con logo y navegación -->
     <header>
-        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ChargeWay Logo">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="ChargeWay Logo"
+                onerror="this.style.display='none'">
+            <h1>⚡ ChargeWay</h1>
+        </div>
         <nav>
-            <a href="/">Mapa</a>
-            <a href="#login">Login</a>
+            <a href="#map-container">Mapa</a>
+            <a href="#mis-reservas" id="nav-reservas" style="display: none;">Mis Reservas</a>
+            <div id="user-info">
+                <span id="user-name">Usuario</span>
+                <button id="logout-btn">Cerrar Sesión</button>
+            </div>
+            <a href="#login-section" id="nav-login">Iniciar Sesión</a>
         </nav>
     </header>
 
     <main>
-        <!-- Mapa -->
-        <section id="map">
-            {{ mapa_html | safe }}
+        <div class="info-banner">
+            <h2>🔋 Encuentra tu Estación de Carga Perfecta</h2>
+            <p>Explora las estaciones de carga para vehículos eléctricos en Paraguay. Haz clic en cualquier marcador
+                verde para ver detalles completos incluyendo tipos de conectores, potencia disponible y hacer tu
+                reserva.</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Estaciones Disponibles</h3>
+                <p id="total-estaciones">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>En Paraguay</h3>
+                <p>🇵🇾</p>
+            </div>
+            <div class="stat-card">
+                <h3>Reserva Fácil</h3>
+                <p>📅</p>
+            </div>
+        </div>
+
+        <div id="map-container">
+            <h2 style="margin-bottom: 15px; color: #1e88e5;">🗺️ Mapa de Estaciones</h2>
+            <div id="map">
+                {{ mapa_html | safe }}
+            </div>
+
+            <div class="legend">
+                <h3>Leyenda:</h3>
+                <div class="legend-item">
+                    <div class="legend-color green"></div>
+                    <span>Disponible / Operacional</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color orange"></div>
+                    <span>Estado Limitado</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color gray"></div>
+                    <span>Estado Desconocido</span>
+                </div>
+            </div>
+        </div>
+
+        <section id="mis-reservas">
+            <h2>📋 Mis Reservas</h2>
+            <div id="lista-reservas">
+                <p style="color: #999; text-align: center;">Cargando reservas...</p>
+            </div>
         </section>
 
-        <!-- Login -->
-        <section id="login">
-            <h2>Iniciar sesión</h2>
+        <section id="login-section">
+            <h2>🔐 Iniciar Sesión</h2>
             <form id="login-form">
-                <input type="email" name="email" placeholder="Email" required>
-                <input type="password" name="password" placeholder="Contraseña" required>
-                <button type="submit">Login</button>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="tu@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-primary">Iniciar Sesión</button>
                 <div class="message" id="login-message"></div>
             </form>
         </section>
     </main>
 
+    <footer>
+        <p>&copy; 2024 ChargeWay. Impulsando el futuro de la movilidad eléctrica en Paraguay.</p>
+    </footer>
+
     <script>
-        // Manejo del login con fetch
-        const form = document.getElementById('login-form');
-        const message = document.getElementById('login-message');
+        // Variables globales
+        let usuarioAutenticado = false;
 
-        form.addEventListener('submit', async (e) => {
+        // Verificar autenticación al cargar
+        async function verificarAutenticacion() {
+            try {
+                const res = await fetch('/api/auth/check', {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+
+                if (data.authenticated) {
+                    usuarioAutenticado = true;
+                    mostrarUsuarioLogueado(data.user);
+                    cargarReservas();
+                }
+            } catch (err) {
+                console.error('Error al verificar autenticación:', err);
+            }
+        }
+
+        function mostrarUsuarioLogueado(user) {
+            document.getElementById('user-info').classList.add('logged-in');
+            document.getElementById('user-name').textContent = user.username || user.email;
+            document.getElementById('nav-login').style.display = 'none';
+            document.getElementById('nav-reservas').style.display = 'block';
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('mis-reservas').classList.add('show');
+        }
+
+        function mostrarUsuarioDeslogueado() {
+            document.getElementById('user-info').classList.remove('logged-in');
+            document.getElementById('nav-login').style.display = 'block';
+            document.getElementById('nav-reservas').style.display = 'none';
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('mis-reservas').classList.remove('show');
+            usuarioAutenticado = false;
+        }
+
+        // Manejo del login
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            message.textContent = '';
 
-            const formData = new FormData(form);
+            const message = document.getElementById('login-message');
+            message.textContent = '';
+            message.className = 'message';
+
+            const formData = new FormData(e.target);
             const data = {
                 email: formData.get('email'),
                 password: formData.get('password')
@@ -124,26 +514,121 @@
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', // importante para sesiones
+                    credentials: 'include',
                     body: JSON.stringify(data)
                 });
 
                 const result = await res.json();
 
                 if (res.ok) {
-                    message.style.color = 'green';
-                    message.textContent = 'Login exitoso';
-                    // Aquí puedes redirigir a otra página si quieres
-                    // window.location.href = '/dashboard';
+                    message.className = 'message success';
+                    message.textContent = '¡Login exitoso! Redirigiendo...';
+                    setTimeout(() => {
+                        verificarAutenticacion();
+                    }, 1000);
                 } else {
-                    message.style.color = 'red';
+                    message.className = 'message error';
                     message.textContent = result.error || 'Error en login';
                 }
             } catch (err) {
-                message.style.color = 'red';
+                message.className = 'message error';
                 message.textContent = 'Error en la conexión';
             }
         });
+
+        // Manejo del logout
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const res = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    mostrarUsuarioDeslogueado();
+                    alert('Sesión cerrada exitosamente');
+                }
+            } catch (err) {
+                console.error('Error al cerrar sesión:', err);
+            }
+        });
+
+        // Cargar reservas del usuario
+        async function cargarReservas() {
+            try {
+                const res = await fetch('/api/reservas/', {
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    const reservas = await res.json();
+                    mostrarReservas(reservas);
+                }
+            } catch (err) {
+                console.error('Error al cargar reservas:', err);
+            }
+        }
+
+        function mostrarReservas(reservas) {
+            const container = document.getElementById('lista-reservas');
+
+            if (reservas.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No tienes reservas activas</p>';
+                return;
+            }
+
+            container.innerHTML = reservas.map(r => `
+                <div class="reserva-item">
+                    <h3>⚡ ${r.estacion_nombre}</h3>
+                    <p>📍 ${r.estacion_direccion}</p>
+                    <p>📅 Fecha: ${r.fecha}</p>
+                    <p>🕐 Hora: ${r.hora_inicio}</p>
+                    <p>⏱️ Duración: ${r.duracion_horas} hora(s)</p>
+                    <p>📊 Estado: <strong>${r.estado}</strong></p>
+                    <div class="reserva-actions">
+                        ${r.estado === 'activa' ? `<button class="btn-small btn-cancel" onclick="cancelarReserva(${r.id})">Cancelar</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function cancelarReserva(reservaId) {
+            if (!confirm('¿Estás seguro de que deseas cancelar esta reserva?')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/reservas/${reservaId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    alert('Reserva cancelada exitosamente');
+                    cargarReservas();
+                } else {
+                    alert('Error al cancelar la reserva');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error al cancelar la reserva');
+            }
+        }
+
+        // Cargar estadísticas
+        async function cargarEstadisticas() {
+            try {
+                const res = await fetch('/api/estaciones/');
+                const estaciones = await res.json();
+                document.getElementById('total-estaciones').textContent = estaciones.length;
+            } catch (err) {
+                console.error('Error al cargar estadísticas:', err);
+            }
+        }
+
+        // Inicializar
+        verificarAutenticacion();
+        cargarEstadisticas();
     </script>
 </body>
 

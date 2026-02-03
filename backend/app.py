@@ -10,6 +10,8 @@ from routes.ev_bp import ev_bp
 from routes.reservas_bp import reservas_bp
 from routes.users_bp import users_bp
 from services.openchargemap import generar_mapa
+from models.user import User  # ← Cambiar 'user' a 'User' (mayúscula)
+from models.reserva import Reserva  # ← Cambiar 'reserva' a 'Reserva' (mayúscula)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -58,10 +60,13 @@ def check_auth():
             )
     return jsonify({"authenticated": False})
 
+
+# Ruta principal con el mapa
 @app.route("/")
 def index():
     mapa_html = generar_mapa()
     return render_template("index.html", mapa_html=mapa_html)
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="127.0.0.1", port=5000)

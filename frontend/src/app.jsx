@@ -1,29 +1,17 @@
 import React, { useState, useEffect } from "react";
 import Header from "./components/header";
 import Login from "./components/Login";
+import MapComponent from "./components/MapComponent";
+import ReservaModal from "./components/ReservaModal";
+import MisReservas from "./components/MisReservas";
 
 function App() {
-  const [mapaHTML, setMapaHTML] = useState("");
   const [showLogin, setShowLogin] = useState(false);
+  const [showReservas, setShowReservas] = useState(false);
+  const [showReservaModal, setShowReservaModal] = useState(false);
+  const [estacionSeleccionada, setEstacionSeleccionada] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-
-  // Manejar cambios en el tamaño de la ventana (importante para móviles)
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowHeight(window.innerHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
-    // También detectar cambios de orientación
-    window.addEventListener('orientationchange', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, []);
 
   // Verificar si hay sesión activa al cargar
   useEffect(() => {
@@ -56,18 +44,11 @@ function App() {
     }
   };
 
-  // Cargar el mapa desde el backend
-  useEffect(() => {
-    fetch("/api/mapa")
-      .then((res) => res.text())
-      .then((html) => setMapaHTML(html))
-      .catch((err) => console.error("Error al cargar el mapa:", err));
-  }, []);
-
   // Manejar login exitoso
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
+    setShowLogin(false);
     console.log("Usuario logueado:", userData);
   };
 
@@ -85,6 +66,17 @@ function App() {
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
     }
+  };
+
+  // Manejar click en reservar
+  const handleReserveClick = (estacion) => {
+    setEstacionSeleccionada(estacion);
+    setShowReservaModal(true);
+  };
+
+  // Manejar éxito de reserva
+  const handleReservaSuccess = () => {
+    // Puedes agregar lógica adicional aquí si lo necesitas
   };
 
   if (loading) {
@@ -107,6 +99,7 @@ function App() {
     <div style={{ height: '100vh', overflow: 'hidden' }}>
       <Header
         onLoginClick={() => setShowLogin(true)}
+        onReservasClick={() => setShowReservas(true)}
         user={user}
         onLogout={handleLogout}
       />
@@ -117,19 +110,26 @@ function App() {
         width: '100%',
         overflow: 'hidden'
       }}>
-        <div
-          id="mapa"
-          style={{
-            width: '100%',
-            height: '100%',
-            position: 'relative'
-          }}
-          dangerouslySetInnerHTML={{ __html: mapaHTML }}
-        ></div>
+        <MapComponent
+          user={user}
+          onReserveClick={handleReserveClick}
+        />
 
-        <button className="find-station-button">
-          Encontrar Estación
-        </button>
+        {/* Botón flotante para ver reservas */}
+        {user && (
+          <button
+            className="find-station-button"
+            onClick={() => setShowReservas(true)}
+            style={{
+              position: 'absolute',
+              bottom: '2rem',
+              left: '50%',
+              transform: 'translateX(-50%)'
+            }}
+          >
+            📋 Mis Reservas
+          </button>
+        )}
       </section>
 
       {/* MODAL LOGIN */}
@@ -137,6 +137,26 @@ function App() {
         <Login
           onClose={() => setShowLogin(false)}
           onLoginSuccess={handleLoginSuccess}
+        />
+      )}
+
+      {/* MODAL RESERVA */}
+      {showReservaModal && estacionSeleccionada && (
+        <ReservaModal
+          estacion={estacionSeleccionada}
+          onClose={() => {
+            setShowReservaModal(false);
+            setEstacionSeleccionada(null);
+          }}
+          onSuccess={handleReservaSuccess}
+        />
+      )}
+
+      {/* MODAL MIS RESERVAS */}
+      {showReservas && user && (
+        <MisReservas
+          user={user}
+          onClose={() => setShowReservas(false)}
         />
       )}
     </div>

@@ -57,7 +57,7 @@ def generar_mapa():
         setTimeout(inicializarClic, 500);
     </script>
     """
-    
+
     # Inyectamos el script en el HTML del mapa
     mapa.get_root().html.add_child(folium.Element(script_marcador))
 
