@@ -1,9 +1,9 @@
 """
 Servicio de Email para ChargeWay
 Envía confirmaciones de reserva con código QR
+VERSIÓN ADAPTADA: Usa el código de reserva ya generado en reservas_bp.py
 """
 import smtplib
-import secrets
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
@@ -29,20 +29,6 @@ class EmailService:
         self.smtp_port = smtp_port
         self.email_user = email_user
         self.email_password = email_password
-
-    def generar_codigo_reserva(self, reserva_id):
-        """
-        Genera un código único de reserva
-
-        Args:
-            reserva_id: ID de la reserva
-
-        Returns:
-            str: Código de reserva único (ej: CHW-R12345-A8B9C)
-        """
-        # Formato: CHW-R{id}-{random}
-        random_part = secrets.token_hex(3).upper()[:5]
-        return f"CHW-R{reserva_id:05d}-{random_part}"
 
     def generar_qr_code(self, codigo_reserva):
         """
@@ -78,7 +64,7 @@ class EmailService:
 
         Args:
             user_name: Nombre del usuario
-            codigo_reserva: Código único de la reserva
+            codigo_reserva: Código único de la reserva (YA GENERADO)
             reserva_data: Dict con datos de la reserva (estacion_nombre, fecha, hora, etc)
 
         Returns:
@@ -252,18 +238,21 @@ class EmailService:
     def enviar_confirmacion_reserva(self, destinatario_email, destinatario_nombre, reserva):
         """
         Envía email de confirmación de reserva con código QR
+        NOTA: Usa el código que YA está en reserva.codigo
 
         Args:
             destinatario_email: Email del usuario
             destinatario_nombre: Nombre del usuario
-            reserva: Objeto Reserva de SQLAlchemy
+            reserva: Objeto Reserva (debe tener campo .codigo)
 
         Returns:
             tuple: (success: bool, mensaje: str, codigo_reserva: str)
         """
         try:
-            # Generar código de reserva único
-            codigo_reserva = self.generar_codigo_reserva(reserva.id)
+            # Usar el código que ya viene en la reserva (no generar uno nuevo)
+            # Si la reserva tiene un atributo 'codigo', usarlo
+            # Si no, intentar con 'codigo_reserva' (compatibilidad)
+            codigo_reserva = getattr(reserva, 'codigo', getattr(reserva, 'codigo_reserva', f'CHW-R{reserva.id:05d}'))
 
             # Preparar datos de la reserva
             reserva_data = {

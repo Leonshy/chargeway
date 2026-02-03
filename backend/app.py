@@ -2,7 +2,9 @@
 # Entry point principal del backend Chargeway
 # Versión ordenada con Application Factory
 # Compatible con DB unificada (chargeway.db)
+from dotenv import load_dotenv
 
+load_dotenv()
 from flask import Flask, render_template, session, jsonify
 from flask_cors import CORS
 
