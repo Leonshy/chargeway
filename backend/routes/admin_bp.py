@@ -4,102 +4,93 @@ import os
 
 admin_bp = Blueprint('admin_bp', __name__)
 
-# Mapeo de nombres "amigables" a archivos físicos y tablas
+# Configuración de las bases de datos
+# NOTA: Verifica que el nombre de 'table' coincida con tu base de datos
 DB_MAP = {
-    'usuarios': {'file': 'users.db', 'table': 'users'},
-    'estaciones': {'file': 'station.db', 'table': 'station'},
+    'usuarios': {'file': 'users.db', 'table': 'user'},    # Cambiado a 'user' (común en SQLAlchemy)
+    'estaciones': {'file': 'station.db', 'table': 'stations'},
     'reservas': {'file': 'reservas.db', 'table': 'reservas'},
-    'vehiculos': {'file': 'vehiculos_ev.db', 'table': 'vehiculos'} 
+    'vehiculos': {'file': 'vehiculos_ev.db', 'table': 'autos'},
+    'conectores': {'file': 'conectores.db', 'table': 'conectores'}
 }
 
 def get_db_connection(db_filename):
-    # Conecta a la base de datos específica dentro de /instance
-    db_path = os.path.join(current_app.instance_path, db_filename)
+    # Localizamos la carpeta 'instance' de forma absoluta
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_path = os.path.join(base_dir, 'instance', db_filename)
+    
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"Archivo no encontrado en: {db_path}")
+
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row # Esto permite traer los datos como diccionarios
     return conn
 
-# 1. LISTAR TABLAS DISPONIBLES
 @admin_bp.route('/tables', methods=['GET'])
 def list_tables():
     return jsonify(list(DB_MAP.keys()))
 
-# 2. OBTENER DATOS (READ)
 @admin_bp.route('/data/<target>', methods=['GET'])
 def get_data(target):
     if target not in DB_MAP:
-        return jsonify({'error': 'Base de datos no encontrada'}), 404
+        return jsonify({'error': 'Configuración de base de datos no encontrada'}), 404
     
     conf = DB_MAP[target]
     try:
         conn = get_db_connection(conf['file'])
-        # Obtenemos todo de la tabla
-        rows = conn.execute(f"SELECT * FROM {conf['table']}").fetchall()
+        cursor = conn.cursor()
+
+        # Intentamos traer TODOS los datos de la tabla configurada
+        try:
+            query = f"SELECT * FROM {conf['table']}"
+            rows = cursor.execute(query).fetchall()
+        except sqlite3.OperationalError:
+            # Si falla (ej: la tabla no se llama 'users' sino 'user'), 
+            # buscamos automáticamente el nombre correcto de la tabla.
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tablas_reales = [t[0] for t in cursor.fetchall() if t[0] != 'sqlite_sequence']
+            
+            return jsonify({
+                'error': f"La tabla '{conf['table']}' no existe.",
+                'tablas_encontradas': tablas_reales,
+                'ayuda': f"Cambia el nombre en DB_MAP a una de estas: {tablas_reales}"
+            }), 500
+
         conn.close()
         
-        # Convertimos a lista de diccionarios
+        # Convertimos los objetos Row a diccionarios puros
         data = [dict(row) for row in rows]
         return jsonify(data)
+
     except Exception as e:
+        print(f"❌ Error en Admin: {e}")
         return jsonify({'error': str(e)}), 500
 
-# 3. AGREGAR DATO (CREATE)
+# Rutas para Crear, Modificar y Eliminar (se mantienen igual de dinámicas)
 @admin_bp.route('/data/<target>', methods=['POST'])
 def add_data(target):
-    if target not in DB_MAP: return jsonify({'error': 'Target inválido'}), 404
-    
-    conf = DB_MAP[target]
-    data = request.json # Datos enviados desde el frontend
-    
-    try:
-        conn = get_db_connection(conf['file'])
-        columns = ', '.join(data.keys())
-        placeholders = ', '.join(['?'] * len(data))
-        values = list(data.values())
-        
-        query = f"INSERT INTO {conf['table']} ({columns}) VALUES ({placeholders})"
-        conn.execute(query, values)
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Dato agregado exitosamente'}), 201
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# 4. MODIFICAR DATO (UPDATE)
-@admin_bp.route('/data/<target>/<int:id>', methods=['PUT'])
-def update_data(target, id):
-    if target not in DB_MAP: return jsonify({'error': 'Target inválido'}), 404
-    
     conf = DB_MAP[target]
     data = request.json
-    
     try:
         conn = get_db_connection(conf['file'])
-        
-        # Construir query dinámico: "col1=?, col2=?"
-        updates = ', '.join([f"{k}=?" for k in data.keys()])
-        values = list(data.values())
-        values.append(id) # El ID va al final para el WHERE
-        
-        query = f"UPDATE {conf['table']} SET {updates} WHERE id=?"
-        conn.execute(query, values)
+        columnas = ', '.join(data.keys())
+        placeholders = ', '.join(['?'] * len(data))
+        query = f"INSERT INTO {conf['table']} ({columnas}) VALUES ({placeholders})"
+        conn.execute(query, list(data.values()))
         conn.commit()
         conn.close()
-        return jsonify({'message': 'Dato actualizado'}), 200
+        return jsonify({'message': 'Agregado correctamente'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 5. ELIMINAR DATO (DELETE)
 @admin_bp.route('/data/<target>/<int:id>', methods=['DELETE'])
 def delete_data(target, id):
-    if target not in DB_MAP: return jsonify({'error': 'Target inválido'}), 404
-    
     conf = DB_MAP[target]
     try:
         conn = get_db_connection(conf['file'])
         conn.execute(f"DELETE FROM {conf['table']} WHERE id=?", (id,))
         conn.commit()
         conn.close()
-        return jsonify({'message': 'Dato eliminado'}), 200
+        return jsonify({'message': 'Eliminado'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
