@@ -18,6 +18,8 @@ from routes.ev_bp import ev_bp
 from routes.reservas_bp import reservas_bp
 from routes.users_bp import users_bp
 from routes.admin_bp import admin_bp
+from routes.conectores_bp import conectores_bp
+
 
 # Servicios
 from services.openchargemap import generar_mapa
@@ -25,7 +27,7 @@ from services.openchargemap import generar_mapa
 # Modelos (necesarios para create_all)
 from models.user import User
 from models.reserva import Reserva
-
+from models.conectores import Connector
 
 def create_app():
     """
@@ -49,6 +51,8 @@ def create_app():
     app.register_blueprint(reservas_bp)
     app.register_blueprint(users_bp, url_prefix="/api/users")
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
+    app.register_blueprint(conectores_bp)
+
 
     # ---------- RUTAS DIRECTAS ----------
 
