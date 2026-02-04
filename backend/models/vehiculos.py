@@ -8,7 +8,7 @@ class Auto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     marca = db.Column(db.String(100), nullable=False)
     modelo = db.Column(db.String(100), nullable=False)
-    año = db.Column(db.Integer, nullable=False)
+    anio = db.Column(db.Integer, nullable=False)
     tipo = db.Column(db.String(50))
     bateria_kwh = db.Column(db.Float)
     autonomia_km = db.Column(db.Integer)
@@ -21,7 +21,7 @@ class Auto(db.Model):
             'id': self.id,
             'marca': self.marca,
             'modelo': self.modelo,
-            'año': self.año,
+            'anio': self.anio,
             'tipo': self.tipo,
             'bateria_kwh': self.bateria_kwh,
             'autonomia_km': self.autonomia_km,
