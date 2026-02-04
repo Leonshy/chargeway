@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // --- IMPORTACIÓN NUEVA ---
-import RutearCamino from './rutearCamino'; 
+import RutearCamino from './rutearCamino';
 
 // Fix para los iconos de Leaflet en React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -73,8 +73,8 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
     const dLat = (lat2 - lat1) * (Math.PI / 180);
     const dLon = (lon2 - lon1) * (Math.PI / 180);
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
@@ -82,14 +82,14 @@ function calcularDistancia(lat1, lon1, lat2, lon2) {
 function MapComponent({ user, onReserveClick }) {
     const [estaciones, setEstaciones] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Estados y Referencias
-    const [userPos, setUserPos] = useState(null); 
+    const [userPos, setUserPos] = useState(null);
     const [destinoRuta, setDestinoRuta] = useState(null);
     const [geolocalizando, setGeolocalizando] = useState(false); // ✅ NUEVO ESTADO
-    
-    const mapRef = useRef(null); 
-    const markersRef = useRef({}); 
+
+    const mapRef = useRef(null);
+    const markersRef = useRef({});
 
     useEffect(() => {
         fetchEstaciones();
@@ -126,23 +126,23 @@ function MapComponent({ user, onReserveClick }) {
             (position) => {
                 const { latitude, longitude } = position.coords;
                 const nuevaPos = { lat: latitude, lng: longitude };
-                
+
                 setUserPos(nuevaPos);
-                
+
                 // Centrar el mapa en la ubicación detectada
                 if (mapRef.current) {
                     mapRef.current.flyTo([latitude, longitude], 15, {
                         duration: 1.5
                     });
                 }
-                
+
                 setGeolocalizando(false);
                 console.log('✅ Ubicación detectada:', nuevaPos);
             },
             (error) => {
                 console.warn('⚠️ Error al obtener ubicación:', error.message);
                 setGeolocalizando(false);
-                
+
                 // Mensajes de error específicos
                 if (error.code === error.PERMISSION_DENIED) {
                     console.log('Usuario denegó el permiso de ubicación');
@@ -209,9 +209,9 @@ function MapComponent({ user, onReserveClick }) {
 
             // 2. HACER ZOOM A LA ESTACIÓN (Modificado para enfoque total)
             // Usamos un zoom de 17 para que se vea bien la información
-            mapRef.current.flyTo([lat, lng], 17, { 
+            mapRef.current.flyTo([lat, lng], 17, {
                 duration: 2,
-                easeLinearity: 0.25 
+                easeLinearity: 0.25
             });
 
             // 3. Abrir el Popup automáticamente
@@ -278,13 +278,17 @@ function MapComponent({ user, onReserveClick }) {
             return;
         }
         const info = estacion.AddressInfo || {};
-        onReserveClick({
+        const estacionFormateada = {
             id: estacion.ID,
-            nombre: info.Title || 'Estación sin nombre',
-            direccion: info.AddressLine1 || 'Dirección no disponible',
-            town: info.Town || '',
-            state: info.StateOrProvince || ''
-        });
+            nombre: info?.Title || 'Estación sin nombre',
+            direccion: info?.AddressLine1 || 'Dirección no disponible',
+            town: info?.Town,
+            state: info?.StateOrProvince,
+            lat: info?.Latitude,
+            lon: info?.Longitude
+        };
+
+        onReserveClick(estacionFormateada);
     };
 
     if (loading) {
@@ -309,16 +313,16 @@ function MapComponent({ user, onReserveClick }) {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                
+
                 {/* --- COMPONENTE DE RUTA (Solo se activa si hay usuario y destino) --- */}
                 {userPos && destinoRuta && (
                     <RutearCamino inicio={userPos} fin={destinoRuta} />
                 )}
 
                 {/* MarcadorUsuario: Pasamos la función para limpiar ruta al mover el pin */}
-                <MarcadorUsuario 
-                    posicion={userPos} 
-                    setPosicion={setUserPos} 
+                <MarcadorUsuario
+                    posicion={userPos}
+                    setPosicion={setUserPos}
                     limpiarRuta={() => setDestinoRuta(null)}
                 />
 
@@ -413,24 +417,24 @@ function MapComponent({ user, onReserveClick }) {
             <button
                 onClick={buscarMasCercana}
                 style={{
-                    position: 'absolute', 
-                    bottom: '25px', 
-                    left: '50%', 
-                    transform: 'translateX(-50%)', 
+                    position: 'absolute',
+                    bottom: '25px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
                     zIndex: 1000,
-                    background: '#007bff', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '50px', 
+                    background: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50px',
                     padding: '12px 25px',
-                    fontSize: '16px', 
-                    fontWeight: 'bold', 
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', 
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
                     cursor: 'pointer',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '10px', 
-                    transition: 'all 0.2s ease', 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    transition: 'all 0.2s ease',
                     whiteSpace: 'nowrap'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)'}

@@ -7,9 +7,20 @@ class Reserva(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    # 🔥 CAMBIO PRINCIPAL: conector_id ahora es REQUERIDO para nuevas reservas
+    # nullable=True permite que reservas viejas sigan funcionando
+    conector_id = db.Column(
+        db.Integer,
+        db.ForeignKey("connectors.id"),
+        nullable=True,  # ✅ True para compatibilidad con reservas existentes
+    )
+
+    # 📌 Mantenemos estos campos para retrocompatibilidad
     estacion_id = db.Column(db.Integer, nullable=False)
     estacion_nombre = db.Column(db.String(200))
     estacion_direccion = db.Column(db.String(300))
+
     fecha = db.Column(db.Date, nullable=False)
     hora_inicio = db.Column(db.Time, nullable=False)
     duracion_horas = db.Column(db.Float, nullable=False)
@@ -17,13 +28,10 @@ class Reserva(db.Model):
     # Estados: activa, en_progreso, completada, cancelada
     estado = db.Column(db.String(50), default="activa")
 
-    # 🆕 NUEVOS CAMPOS PARA KIOSK
-    hora_inicio_real = db.Column(db.DateTime, nullable=True)  # Cuando realmente llegó
-    hora_fin_real = db.Column(db.DateTime, nullable=True)  # Cuando realmente terminó
-    conector_id = db.Column(db.Integer, nullable=True)  # Qué conector usó
-    duracion_real_horas = db.Column(
-        db.Float, nullable=True
-    )  # Duración real de la carga
+    # 🆕 CAMPOS PARA KIOSK
+    hora_inicio_real = db.Column(db.DateTime, nullable=True)
+    hora_fin_real = db.Column(db.DateTime, nullable=True)
+    duracion_real_horas = db.Column(db.Float, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
@@ -31,17 +39,19 @@ class Reserva(db.Model):
     )
     codigo = db.Column(db.String(20), unique=True, nullable=False)
 
-    # Relación con User
+    # 🔗 RELACIONES
     user = db.relationship("User", backref=db.backref("reservas", lazy=True))
+    conector = db.relationship("Connector", backref=db.backref("reservas", lazy=True))
 
-    def to_dict(self, include_user_info=False):
+    def to_dict(self, include_user_info=False, include_conector_info=False):
         """
-        Convertir a diccionario con opción de incluir info del usuario
+        Convertir a diccionario con opciones de incluir info del usuario y conector
         """
         data = {
             "id": self.id,
             "codigo": self.codigo,
             "user_id": self.user_id,
+            "conector_id": self.conector_id,
             "estacion_id": self.estacion_id,
             "estacion_nombre": self.estacion_nombre,
             "estacion_direccion": self.estacion_direccion,
@@ -61,7 +71,7 @@ class Reserva(db.Model):
                 if self.updated_at
                 else None
             ),
-            # 🆕 Nuevos campos
+            # Campos para kiosk
             "hora_inicio_real": (
                 self.hora_inicio_real.strftime("%Y-%m-%d %H:%M:%S")
                 if self.hora_inicio_real
@@ -72,7 +82,6 @@ class Reserva(db.Model):
                 if self.hora_fin_real
                 else None
             ),
-            "conector_id": self.conector_id,
             "duracion_real_horas": self.duracion_real_horas,
         }
 
@@ -85,7 +94,17 @@ class Reserva(db.Model):
                 "phone": self.user.phone,
             }
 
+        # 🆕 Incluir info del conector si se solicita
+        if include_conector_info and self.conector:
+            data["conector"] = {
+                "id": self.conector.id,
+                "nombre": self.conector.nombre,
+                "tipo": self.conector.tipo,
+                "potencia_kw": self.conector.potencia_kw,
+                "activo": self.conector.activo,
+            }
+
         return data
 
     def __repr__(self):
-        return f"<Reserva {self.id} - Estación {self.estacion_id} - Usuario {self.user_id} - Estado: {self.estado}>"
+        return f"<Reserva {self.id} - Conector {self.conector_id} - Usuario {self.user_id} - Estado: {self.estado}>"
