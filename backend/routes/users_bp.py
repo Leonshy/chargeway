@@ -1,5 +1,4 @@
-from flask import Blueprint, jsonify, request
-from flask_login import login_required, current_user # Asumiendo flask_login
+from flask import Blueprint, jsonify, request, session
 from models.user import User
 from db import db
 
@@ -16,37 +15,48 @@ def list_users():
 # 🆕 NUEVO: Ruta para actualizar perfil
 # ============================================
 @users_bp.route("/update", methods=["PUT"])
-@login_required
 def update_profile():
+    # En lugar de @login_required de Flask-Login, usamos la sesión manual
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Sesión no válida o expirada"}), 401
+
     data = request.get_json()
-    user = User.query.get(current_user.id)
+    user = User.query.get(user_id)
 
     if not user:
         return jsonify({"error": "Usuario no encontrado"}), 404
 
-    # Validar contraseña actual para seguridad
+    # 1. Validar contraseña actual (Seguridad)
     current_password = data.get("current_password")
     if not current_password or not user.check_password(current_password):
         return jsonify({"error": "La contraseña actual es incorrecta"}), 401
 
-    # Actualizar datos
+    # 2. Actualizar nombre de usuario
     if "username" in data and data["username"]:
         existing = User.query.filter_by(username=data["username"]).first()
         if existing and existing.id != user.id:
-            return jsonify({"error": "El usuario ya existe"}), 400
+            return jsonify({"error": "El nombre de usuario ya está en uso"}), 400
         user.username = data["username"]
 
+    # 3. Actualizar teléfono
     if "phone" in data:
         user.phone = data["phone"]
 
+    # 4. Actualizar contraseña (solo si se envió una nueva)
     if "new_password" in data and data["new_password"]:
         if len(data["new_password"]) < 6:
-            return jsonify({"error": "Mínimo 6 caracteres para la contraseña"}), 400
+            return jsonify({"error": "La nueva contraseña es muy corta"}), 400
         user.set_password(data["new_password"])
 
     try:
         db.session.commit()
-        return jsonify({"message": "Actualizado", "user": user.to_dict(include_role=True)})
-    except:
+        # Retornamos el diccionario del usuario actualizado para el frontend
+        return jsonify({
+            "message": "Perfil actualizado",
+            "user": user.to_dict() # Asegúrate de que tu modelo User tenga to_dict()
+        }), 200
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Error en BD"}), 500
+        print(f"Error update_profile: {e}")
+        return jsonify({"error": "Error al guardar en la base de datos"}), 500
