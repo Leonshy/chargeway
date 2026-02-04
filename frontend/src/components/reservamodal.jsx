@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function ReservaModal({ estacion, onClose, onSuccess }) {
     const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
@@ -8,10 +7,74 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // 🆕 Nuevos estados para conectores
+    const [conectoresDisponibles, setConectoresDisponibles] = useState([]);
+    const [conectorSeleccionado, setConectorSeleccionado] = useState(null);
+    const [cargandoConectores, setCargandoConectores] = useState(false);
+    const [errorConectores, setErrorConectores] = useState('');
+
+    // 🔄 Obtener conectores disponibles cuando cambien fecha/hora/duración
+    useEffect(() => {
+        const obtenerConectoresDisponibles = async () => {
+            // Solo buscar si tenemos todos los datos necesarios
+            if (!estacion?.id || !fecha || !horaInicio || !duracion) {
+                setConectoresDisponibles([]);
+                setConectorSeleccionado(null);
+                return;
+            }
+
+            setCargandoConectores(true);
+            setErrorConectores('');
+
+            try {
+                const response = await fetch(
+                    `/api/reservas/estacion/${estacion.id}/conectores-disponibles?` +
+                    `fecha=${fecha}&hora_inicio=${horaInicio}&duracion=${duracion}`,
+                    {
+                        credentials: 'include'
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setConectoresDisponibles(data.conectores || []);
+
+                    // Auto-seleccionar el primer conector si hay disponibles
+                    if (data.conectores && data.conectores.length > 0) {
+                        setConectorSeleccionado(data.conectores[0]);
+                    } else {
+                        setConectorSeleccionado(null);
+                        setErrorConectores('No hay conectores disponibles en este horario');
+                    }
+                } else {
+                    setConectoresDisponibles([]);
+                    setConectorSeleccionado(null);
+                    setErrorConectores('Error al verificar disponibilidad');
+                }
+            } catch (err) {
+                console.error('Error al obtener conectores:', err);
+                setConectoresDisponibles([]);
+                setConectorSeleccionado(null);
+                setErrorConectores('Error de conexión');
+            } finally {
+                setCargandoConectores(false);
+            }
+        };
+
+        obtenerConectoresDisponibles();
+    }, [fecha, horaInicio, duracion, estacion?.id]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+
+        // ✅ Validar que haya un conector seleccionado
+        if (!conectorSeleccionado) {
+            setError('Por favor selecciona un conector disponible');
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await fetch('/api/reservas/', {
@@ -21,9 +84,7 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    estacion_id: estacion.id,
-                    estacion_nombre: estacion.nombre,
-                    estacion_direccion: `${estacion.direccion}${estacion.town ? ', ' + estacion.town : ''}${estacion.state ? ', ' + estacion.state : ''}`,
+                    conector_id: conectorSeleccionado.id, // 🔥 CAMBIO PRINCIPAL
                     fecha: fecha,
                     hora_inicio: horaInicio,
                     duracion: parseFloat(duracion)
@@ -36,14 +97,22 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                 alert('¡Reserva creada exitosamente!\n\n' +
                     'Detalles:\n' +
                     `Estación: ${estacion.nombre}\n` +
+                    `Conector: ${conectorSeleccionado.nombre} (${conectorSeleccionado.tipo})\n` +
+                    `Potencia: ${conectorSeleccionado.potencia_kw} kW\n` +
                     `Fecha: ${fecha}\n` +
                     `Hora: ${horaInicio}\n` +
-                    `Duración: ${duracion} hora(s)`
+                    `Duración: ${duracion} hora(s)\n\n` +
+                    `Código de reserva: ${data.reserva?.codigo || 'N/A'}`
                 );
                 onSuccess();
                 onClose();
             } else {
-                setError(data.error || 'Error al crear la reserva');
+                // Manejar conflictos de disponibilidad
+                if (response.status === 409 && data.conflictos) {
+                    setError(`El conector ya no está disponible en este horario. Por favor selecciona otro horario.`);
+                } else {
+                    setError(data.error || 'Error al crear la reserva');
+                }
             }
         } catch (err) {
             console.error('Error:', err);
@@ -136,6 +205,78 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                         </select>
                     </div>
 
+                    {/* 🆕 SELECTOR DE CONECTORES */}
+                    {fecha && horaInicio && duracion && (
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                                🔌 Conector:
+                            </label>
+
+                            {cargandoConectores ? (
+                                <div style={{
+                                    padding: '1rem',
+                                    textAlign: 'center',
+                                    background: '#f0f0f0',
+                                    borderRadius: '8px',
+                                    color: '#00c853'
+                                }}>
+                                    <i className="fa-solid fa-spinner fa-spin"></i>
+                                    {' '}Verificando disponibilidad...
+                                </div>
+                            ) : conectoresDisponibles.length > 0 ? (
+                                <>
+                                    <select
+                                        value={conectorSeleccionado?.id || ''}
+                                        onChange={(e) => {
+                                            const conector = conectoresDisponibles.find(
+                                                c => c.id === parseInt(e.target.value)
+                                            );
+                                            setConectorSeleccionado(conector);
+                                        }}
+                                        required
+                                        style={{
+                                            width: '100%',
+                                            padding: '0.75rem',
+                                            border: '2px solid #00c853',
+                                            borderRadius: '8px',
+                                            fontSize: '1rem',
+                                            cursor: 'pointer',
+                                            background: 'white'
+                                        }}
+                                    >
+                                        {conectoresDisponibles.map(conector => (
+                                            <option key={conector.id} value={conector.id}>
+                                                {conector.nombre} - {conector.tipo} ({conector.potencia_kw} kW)
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <small style={{
+                                        display: 'block',
+                                        marginTop: '5px',
+                                        color: '#00c853',
+                                        fontSize: '0.85rem'
+                                    }}>
+                                        ✅ {conectoresDisponibles.length} conector(es) disponible(s)
+                                    </small>
+                                </>
+                            ) : (
+                                <div style={{
+                                    padding: '1rem',
+                                    background: '#fff3cd',
+                                    border: '1px solid #ffc107',
+                                    borderRadius: '8px',
+                                    color: '#856404'
+                                }}>
+                                    ⚠️ {errorConectores || 'No hay conectores disponibles en este horario'}
+                                    <br />
+                                    <small style={{ fontSize: '0.85rem' }}>
+                                        Intenta con otra fecha u horario
+                                    </small>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {error && (
                         <div className="error-message" style={{ marginBottom: '1rem' }}>
                             {error}
@@ -145,9 +286,13 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || !conectorSeleccionado || cargandoConectores}
                             className="login-btn"
-                            style={{ flex: 1 }}
+                            style={{
+                                flex: 1,
+                                opacity: (!conectorSeleccionado || cargandoConectores) ? 0.5 : 1,
+                                cursor: (!conectorSeleccionado || cargandoConectores) ? 'not-allowed' : 'pointer'
+                            }}
                         >
                             {loading ? '⏳ Reservando...' : '✅ Confirmar Reserva'}
                         </button>

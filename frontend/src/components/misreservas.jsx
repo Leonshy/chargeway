@@ -58,6 +58,8 @@ function MisReservas({ user, onClose }) {
                 return '#2196F3';
             case 'cancelada':
                 return '#f44336';
+            case 'en_progreso':
+                return '#FF9800';
             default:
                 return '#9E9E9E';
         }
@@ -71,6 +73,8 @@ function MisReservas({ user, onClose }) {
                 return '✔️';
             case 'cancelada':
                 return '❌';
+            case 'en_progreso':
+                return '⚡';
             default:
                 return '❓';
         }
@@ -156,6 +160,45 @@ function MisReservas({ user, onClose }) {
                                         {getEstadoEmoji(reserva.estado)} {reserva.estado.toUpperCase()}
                                     </span>
                                 </div>
+
+                                {/* 🆕 MOSTRAR INFO DEL CONECTOR */}
+                                {reserva.conector && (
+                                    <div style={{
+                                        background: '#e8f5e9',
+                                        padding: '0.8rem',
+                                        borderRadius: '6px',
+                                        marginBottom: '0.8rem',
+                                        border: '1px solid #c8e6c9'
+                                    }}>
+                                        <p style={{ margin: '0 0 5px 0', fontSize: '0.9rem', color: '#2e7d32', fontWeight: '600' }}>
+                                            🔌 {reserva.conector.nombre}
+                                        </p>
+                                        <p style={{ margin: '0', fontSize: '0.85rem', color: '#558b2f' }}>
+                                            Tipo: {reserva.conector.tipo} • Potencia: {reserva.conector.potencia_kw} kW
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* 🆕 CÓDIGO DE RESERVA */}
+                                {reserva.codigo && (
+                                    <div style={{
+                                        background: '#fff3e0',
+                                        padding: '0.6rem',
+                                        borderRadius: '6px',
+                                        marginBottom: '0.8rem',
+                                        border: '1px solid #ffe0b2',
+                                        textAlign: 'center'
+                                    }}>
+                                        <p style={{ margin: '0', fontSize: '0.85rem', color: '#e65100' }}>
+                                            <strong>Código:</strong> <span style={{
+                                                fontFamily: 'monospace',
+                                                fontSize: '1rem',
+                                                letterSpacing: '2px',
+                                                fontWeight: 'bold'
+                                            }}>{reserva.codigo}</span>
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div style={{ marginBottom: '0.5rem' }}>
                                     <p style={{ margin: '5px 0', fontSize: '0.9rem', color: '#666' }}>
