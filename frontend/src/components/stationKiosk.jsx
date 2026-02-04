@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import "./StationKiosk.css";
 
-function StationKiosk() {
+function StationKiosk({ onClose }) { // 🆕 Ahora recibe onClose como prop
     const [codigo, setCodigo] = useState("");
-    const [estado, setEstado] = useState("idle"); // idle, verificando, activa, en_progreso, completada, error
+    const [estado, setEstado] = useState("idle");
     const [reserva, setReserva] = useState(null);
     const [estacion, setEstacion] = useState(null);
     const [conectores, setConectores] = useState([]);
@@ -12,7 +12,7 @@ function StationKiosk() {
     const [tiempoRestante, setTiempoRestante] = useState(null);
     const [resumen, setResumen] = useState(null);
 
-    // Polling para actualizar tiempo restante cuando está en progreso
+    // Polling para actualizar tiempo restante
     useEffect(() => {
         let interval;
 
@@ -24,7 +24,6 @@ function StationKiosk() {
                         const data = await response.json();
                         setTiempoRestante(data.tiempo_restante);
 
-                        // Si se completó desde otro lugar, actualizar
                         if (data.reserva.estado === "completada") {
                             setEstado("completada");
                         }
@@ -32,7 +31,7 @@ function StationKiosk() {
                 } catch (err) {
                     console.error("Error actualizando estado:", err);
                 }
-            }, 10000); // Actualizar cada 10 segundos
+            }, 10000);
         }
 
         return () => {
@@ -65,7 +64,6 @@ function StationKiosk() {
                 setEstacion(data.estacion);
                 setConectores(data.conectores_disponibles || []);
 
-                // Si ya está en progreso, ir directo a ese estado
                 if (data.reserva.estado === "en_progreso") {
                     setEstado("en_progreso");
                 } else {
@@ -80,6 +78,7 @@ function StationKiosk() {
                 }, 3000);
             }
         } catch (err) {
+            console.error("Error:", err);
             setError("Error de conexión. Intente nuevamente.");
             setEstado("error");
             setTimeout(() => setEstado("idle"), 3000);
@@ -126,7 +125,6 @@ function StationKiosk() {
                 setResumen(data.resumen);
                 setEstado("completada");
 
-                // Resetear después de 10 segundos
                 setTimeout(() => {
                     handleReset();
                 }, 10000);
@@ -150,8 +148,20 @@ function StationKiosk() {
         setResumen(null);
     };
 
+    const calcularHoraFin = () => {
+        if (!reserva) return "";
+
+        const [horas, minutos] = reserva.hora_inicio.split(":");
+        const inicio = new Date();
+        inicio.setHours(parseInt(horas), parseInt(minutos));
+
+        const fin = new Date(inicio.getTime() + reserva.duracion_horas * 60 * 60 * 1000);
+
+        return fin.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
+    };
+
     // ============================================
-    // 🎨 RENDER: PANTALLA INICIAL
+    // 🎨 RENDERS
     // ============================================
     const renderPantallaInicial = () => (
         <div className="kiosk-screen inicial">
@@ -191,14 +201,11 @@ function StationKiosk() {
             </div>
 
             <div className="kiosk-footer">
-                <p>¿Necesita ayuda? Escanee el código QR o contacte al personal</p>
+                <p>¿Necesita ayuda? Contacte al personal de la estación</p>
             </div>
         </div>
     );
 
-    // ============================================
-    // 🎨 RENDER: VERIFICANDO
-    // ============================================
     const renderVerificando = () => (
         <div className="kiosk-screen verificando">
             <div className="spinner-large"></div>
@@ -206,9 +213,6 @@ function StationKiosk() {
         </div>
     );
 
-    // ============================================
-    // 🎨 RENDER: RESERVA ACTIVA (Confirmación)
-    // ============================================
     const renderReservaActiva = () => (
         <div className="kiosk-screen activa">
             <div className="kiosk-header success">
@@ -275,9 +279,6 @@ function StationKiosk() {
         </div>
     );
 
-    // ============================================
-    // 🎨 RENDER: CARGA EN PROGRESO
-    // ============================================
     const renderEnProgreso = () => (
         <div className="kiosk-screen en-progreso">
             <div className="kiosk-header progress">
@@ -348,9 +349,6 @@ function StationKiosk() {
         </div>
     );
 
-    // ============================================
-    // 🎨 RENDER: CARGA COMPLETADA
-    // ============================================
     const renderCompletada = () => (
         <div className="kiosk-screen completada">
             <div className="kiosk-header success">
@@ -405,32 +403,20 @@ function StationKiosk() {
             </div>
 
             <div className="auto-reset">
-                Volviendo a pantalla inicial en 10 segundos...
+                Reiniciando en 10 segundos...
             </div>
         </div>
     );
 
-    // ============================================
-    // 🛠️ FUNCIONES AUXILIARES
-    // ============================================
-    const calcularHoraFin = () => {
-        if (!reserva) return "";
-
-        const [horas, minutos] = reserva.hora_inicio.split(":");
-        const inicio = new Date();
-        inicio.setHours(parseInt(horas), parseInt(minutos));
-
-        const fin = new Date(inicio.getTime() + reserva.duracion_horas * 60 * 60 * 1000);
-
-        return fin.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' });
-    };
-
-    // ============================================
-    // 🎬 RENDER PRINCIPAL
-    // ============================================
+    // 🆕 Render principal como OVERLAY (igual que tus otros modales)
     return (
-        <div className="station-kiosk">
-            <div className="kiosk-container">
+        <div className="kiosk-overlay" onClick={onClose}>
+            <div className="kiosk-container" onClick={(e) => e.stopPropagation()}>
+                {/* Botón de cerrar */}
+                <button className="btn-exit-kiosk" onClick={onClose}>
+                    ✕ Cerrar
+                </button>
+
                 {estado === "idle" && renderPantallaInicial()}
                 {estado === "verificando" && renderVerificando()}
                 {estado === "activa" && renderReservaActiva()}
@@ -438,11 +424,6 @@ function StationKiosk() {
                 {estado === "completada" && renderCompletada()}
                 {estado === "error" && renderPantallaInicial()}
             </div>
-
-            {/* Botón para salir del kiosk (solo en dev) */}
-            <a href="/" className="btn-exit-kiosk" title="Salir del modo Kiosk">
-                ← Volver
-            </a>
         </div>
     );
 }

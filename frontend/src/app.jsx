@@ -22,29 +22,17 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showKiosk, setShowKiosk] = useState(false); // 🆕 NUEVO
 
-  // 🆕 NUEVO: Detectar si estamos en la ruta /kiosk
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path === "/kiosk") {
-      setShowKiosk(true);
-    }
-  }, []);
-
   // Verificar si hay sesión activa al cargar
   useEffect(() => {
-    if (!showKiosk) {
-      checkAuth();
-    } else {
-      setLoading(false);
-    }
-  }, [showKiosk]);
+    checkAuth();
+  }, []);
 
   // Verificar si el usuario es admin
   useEffect(() => {
-    if (user && !showKiosk) {
+    if (user) {
       checkAdminStatus();
     }
-  }, [user, showKiosk]);
+  }, [user]);
 
   // Verificar autenticación
   const checkAuth = async () => {
@@ -143,11 +131,6 @@ function App() {
     );
   }
 
-  // 🆕 NUEVO: Si estamos en modo kiosk, mostrar solo el kiosk
-  if (showKiosk) {
-    return <StationKiosk />;
-  }
-
   return (
     <div style={{ height: "100vh", overflow: "hidden" }}>
       <Header
@@ -156,6 +139,7 @@ function App() {
         onVehiculosClick={() => setShowVehiculos(true)}
         onAcercaDeClick={() => setShowAcercaDe(true)}
         onAdminClick={() => setShowAdmin(true)}
+        onKioskClick={() => setShowKiosk(true)} // 🆕 NUEVO
         user={user}
         onLogout={handleLogout}
         isAdmin={isAdmin}
@@ -208,6 +192,11 @@ function App() {
       {/* MODAL PANEL DE ADMINISTRACIÓN */}
       {showAdmin && user && isAdmin && (
         <AdminPanel user={user} onClose={() => setShowAdmin(false)} />
+      )}
+
+      {/* 🆕 NUEVO: MODAL KIOSK DE ESTACIÓN */}
+      {showKiosk && (
+        <StationKiosk onClose={() => setShowKiosk(false)} />
       )}
     </div>
   );
