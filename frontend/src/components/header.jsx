@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 
-function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogout }) {
+function Header({
+  onLoginClick,
+  onReservasClick,
+  onVehiculosClick,
+  onAcercaDeClick, // NUEVO
+  user,
+  onLogout
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const menuRef = useRef(null);
@@ -13,9 +20,9 @@ function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogou
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
 
-    return () => window.removeEventListener('resize', checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Cerrar menú cuando se hace clic fuera
@@ -24,7 +31,7 @@ function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogou
 
     const handleClickOutside = (event) => {
       if (
-        menuRef.current && 
+        menuRef.current &&
         !menuRef.current.contains(event.target) &&
         buttonRef.current &&
         !buttonRef.current.contains(event.target)
@@ -33,17 +40,17 @@ function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogou
       }
     };
 
-    document.addEventListener('click', handleClickOutside, true);
+    document.addEventListener("click", handleClickOutside, true);
 
     return () => {
-      document.removeEventListener('click', handleClickOutside, true);
+      document.removeEventListener("click", handleClickOutside, true);
     };
   }, [menuOpen]);
 
   const handleMenuClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setMenuOpen(prev => !prev);
+    setMenuOpen((prev) => !prev);
   };
 
   const handleReservasClick = () => {
@@ -57,6 +64,14 @@ function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogou
     setMenuOpen(false);
     if (onVehiculosClick) {
       onVehiculosClick();
+    }
+  };
+
+  // NUEVO — handler Acerca de
+  const handleAcercaDeClick = () => {
+    setMenuOpen(false);
+    if (onAcercaDeClick) {
+      onAcercaDeClick();
     }
   };
 
@@ -85,35 +100,40 @@ function Header({ onLoginClick, onReservasClick, onVehiculosClick, user, onLogou
       {/* Menú desplegable */}
       {menuOpen && (
         <div ref={menuRef} className="menu-dropdown">
-          <p onClick={() => setMenuOpen(false)}>🗺️ Mapa</p>
+          
+
           {user && (
             <>
-              <p onClick={handleReservasClick}>📋 Mis Reservas</p>
-              <p onClick={handleVehiculosClick}>🚗 Mis Vehículos</p>
+              <p onClick={handleReservasClick}>Mis Reservas</p>
+              <p onClick={handleVehiculosClick}>Mis Vehículos</p>
             </>
           )}
-          <p onClick={() => setMenuOpen(false)}>ℹ️ Acerca de</p>
+
+          {/* NUEVO — Acerca de */}
+          <p onClick={handleAcercaDeClick}>Acerca de</p>
         </div>
       )}
 
       <div className="header-right">
         {user ? (
-          <div style={{
-            display: 'flex',
-            gap: isMobile ? '0.5rem' : '1rem',
-            alignItems: 'center',
-            flexDirection: isMobile ? 'column' : 'row'
-          }}>
-            <span style={{ color: '#00c853' }}>
+          <div
+            style={{
+              display: "flex",
+              gap: isMobile ? "0.5rem" : "1rem",
+              alignItems: "center",
+              flexDirection: isMobile ? "column" : "row",
+            }}
+          >
+            <span style={{ color: "#00c853" }}>
               👤 {isMobile ? user.username.substring(0, 10) : user.username}
             </span>
             <button onClick={onLogout}>
-              {isMobile ? 'Salir' : 'Cerrar Sesión'}
+              {isMobile ? "Salir" : "Cerrar Sesión"}
             </button>
           </div>
         ) : (
           <button onClick={onLoginClick}>
-            {isMobile ? 'Login' : 'Iniciar Sesión'}
+            {isMobile ? "Login" : "Iniciar Sesión"}
           </button>
         )}
       </div>
