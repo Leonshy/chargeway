@@ -7,17 +7,54 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // 🆕 Nuevos estados para conectores
+    // 🆕 Estados para conectores
     const [conectoresDisponibles, setConectoresDisponibles] = useState([]);
     const [conectorSeleccionado, setConectorSeleccionado] = useState(null);
     const [cargandoConectores, setCargandoConectores] = useState(false);
     const [errorConectores, setErrorConectores] = useState('');
 
+    // 🔥 NUEVO: Estado para el ID local de la estación
+    const [estacionIdLocal, setEstacionIdLocal] = useState(null);
+    const [buscandoEstacion, setBuscandoEstacion] = useState(true);
+
+    // 🔥 NUEVO: Buscar el ID local de la estación por nombre
+    useEffect(() => {
+        const buscarEstacionLocal = async () => {
+            if (!estacion?.nombre) {
+                setBuscandoEstacion(false);
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `/api/reservas/buscar-estacion?nombre=${encodeURIComponent(estacion.nombre)}`,
+                    { credentials: 'include' }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setEstacionIdLocal(data.estacion_id);
+                    console.log(`✅ Estación encontrada en BD con ID: ${data.estacion_id}`);
+                } else {
+                    console.error('❌ Estación no encontrada en la base de datos');
+                    setError('Esta estación no está disponible para reservas en este momento');
+                }
+            } catch (err) {
+                console.error('Error al buscar estación:', err);
+                setError('Error al conectar con el servidor');
+            } finally {
+                setBuscandoEstacion(false);
+            }
+        };
+
+        buscarEstacionLocal();
+    }, [estacion?.nombre]);
+
     // 🔄 Obtener conectores disponibles cuando cambien fecha/hora/duración
     useEffect(() => {
         const obtenerConectoresDisponibles = async () => {
-            // Solo buscar si tenemos todos los datos necesarios
-            if (!estacion?.id || !fecha || !horaInicio || !duracion) {
+            // Solo buscar si tenemos el ID local y todos los datos necesarios
+            if (!estacionIdLocal || !fecha || !horaInicio || !duracion) {
                 setConectoresDisponibles([]);
                 setConectorSeleccionado(null);
                 return;
@@ -28,11 +65,9 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
 
             try {
                 const response = await fetch(
-                    `/api/reservas/estacion/${estacion.id}/conectores-disponibles?` +
+                    `/api/reservas/estacion/${estacionIdLocal}/conectores-disponibles?` +
                     `fecha=${fecha}&hora_inicio=${horaInicio}&duracion=${duracion}`,
-                    {
-                        credentials: 'include'
-                    }
+                    { credentials: 'include' }
                 );
 
                 if (response.ok) {
@@ -62,7 +97,7 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
         };
 
         obtenerConectoresDisponibles();
-    }, [fecha, horaInicio, duracion, estacion?.id]);
+    }, [fecha, horaInicio, duracion, estacionIdLocal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -84,7 +119,7 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    conector_id: conectorSeleccionado.id, // 🔥 CAMBIO PRINCIPAL
+                    conector_id: conectorSeleccionado.id,
                     fecha: fecha,
                     hora_inicio: horaInicio,
                     duracion: parseFloat(duracion)
@@ -107,7 +142,6 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                 onSuccess();
                 onClose();
             } else {
-                // Manejar conflictos de disponibilidad
                 if (response.status === 409 && data.conflictos) {
                     setError(`El conector ya no está disponible en este horario. Por favor selecciona otro horario.`);
                 } else {
@@ -121,6 +155,22 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
             setLoading(false);
         }
     };
+
+    // 🔄 Mostrar loading mientras busca la estación
+    if (buscandoEstacion) {
+        return (
+            <div className="login-overlay" onClick={onClose}>
+                <div className="login-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                    <button className="close-btn" onClick={onClose}>×</button>
+                    <h2 style={{ color: '#00c853' }}>📅 Reservar Estación</h2>
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#00c853' }}>
+                        <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem' }}></i>
+                        <p style={{ marginTop: '1rem' }}>Verificando disponibilidad de la estación...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="login-overlay" onClick={onClose}>
@@ -206,7 +256,7 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                     </div>
 
                     {/* 🆕 SELECTOR DE CONECTORES */}
-                    {fecha && horaInicio && duracion && (
+                    {fecha && horaInicio && duracion && estacionIdLocal && (
                         <div style={{ marginBottom: '1rem' }}>
                             <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
                                 🔌 Conector:
@@ -286,12 +336,12 @@ function ReservaModal({ estacion, onClose, onSuccess }) {
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
                             type="submit"
-                            disabled={loading || !conectorSeleccionado || cargandoConectores}
+                            disabled={loading || !conectorSeleccionado || cargandoConectores || !estacionIdLocal}
                             className="login-btn"
                             style={{
                                 flex: 1,
-                                opacity: (!conectorSeleccionado || cargandoConectores) ? 0.5 : 1,
-                                cursor: (!conectorSeleccionado || cargandoConectores) ? 'not-allowed' : 'pointer'
+                                opacity: (!conectorSeleccionado || cargandoConectores || !estacionIdLocal) ? 0.5 : 1,
+                                cursor: (!conectorSeleccionado || cargandoConectores || !estacionIdLocal) ? 'not-allowed' : 'pointer'
                             }}
                         >
                             {loading ? '⏳ Reservando...' : '✅ Confirmar Reserva'}

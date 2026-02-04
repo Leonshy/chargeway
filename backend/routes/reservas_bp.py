@@ -306,33 +306,54 @@ def crear_reserva():
             duracion_horas=duracion,
             estado="activa",
             codigo=codigo,
+            codigo_enviado=False,  # ✅ AGREGADO: Inicializar en False
         )
 
         db.session.add(nueva_reserva)
         db.session.commit()
 
         # 📧 Enviar email de confirmación (si está habilitado)
+        email_enviado = False
+        email_error = None
+
         if current_app.config.get("EMAIL_ENABLED", True):
             try:
                 email_service = get_email_service()
-                email_service.enviar_confirmacion_reserva(
-                    destinatario_email=user.email,
-                    destinatario_nombre=user.username,
-                    reserva=nueva_reserva,
+                success, mensaje, codigo_email = (
+                    email_service.enviar_confirmacion_reserva(
+                        destinatario_email=user.email,
+                        destinatario_nombre=user.username,
+                        reserva=nueva_reserva,
+                    )
                 )
-                print(f"✅ Email de confirmación enviado a {user.email}")
+
+                if success:
+                    # ✅ CORRECCIÓN: Marcar que el email fue enviado
+                    nueva_reserva.codigo_enviado = True
+                    db.session.commit()
+                    email_enviado = True
+                    print(f"✅ Email de confirmación enviado a {user.email}")
+                else:
+                    email_error = mensaje
+                    print(f"⚠️ No se pudo enviar email: {mensaje}")
+
             except Exception as e:
+                email_error = str(e)
                 print(f"⚠️ Error al enviar email: {e}")
 
-        return (
-            jsonify(
-                {
-                    "message": "Reserva creada exitosamente",
-                    "reserva": nueva_reserva.to_dict(include_conector_info=True),
-                }
-            ),
-            201,
-        )
+        response_data = {
+            "message": "Reserva creada exitosamente",
+            "reserva": nueva_reserva.to_dict(include_conector_info=True),
+            "email_enviado": email_enviado,
+        }
+
+        # Agregar info sobre el email si hubo error
+        if email_error and not email_enviado:
+            response_data["email_warning"] = (
+                f"Reserva creada pero no se pudo enviar el email: {email_error}"
+            )
+
+        return jsonify(response_data), 201
 
     except ValueError as e:
         return jsonify({"error": f"Formato de fecha/hora inválido: {str(e)}"}), 400
@@ -351,17 +372,139 @@ def obtener_reserva(reserva_id):
         reserva = Reserva.query.filter_by(
             id=reserva_id, user_id=session["user_id"]
         ).first()
+
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
         return jsonify(reserva.to_dict(include_conector_info=True))
+
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@reservas_bp.route("/<int:reserva_id>", methods=["PUT"])
+def actualizar_reserva(reserva_id):
+    """
+    Actualizar una reserva existente (solo si está en estado 'activa')
+    Permite cambiar: fecha, hora_inicio, duracion, conector_id
+    """
+    if "user_id" not in session:
+        return jsonify({"error": "No autenticado"}), 401
+
+    try:
+        # Buscar la reserva
+        reserva = Reserva.query.filter_by(
+            id=reserva_id, user_id=session["user_id"]
+        ).first()
+
+        if not reserva:
+            return jsonify({"error": "Reserva no encontrada"}), 404
+
+        # Solo permitir actualizar reservas activas
+        if reserva.estado != "activa":
+            return (
+                jsonify(
+                    {
+                        "error": f"No se puede modificar una reserva en estado '{reserva.estado}'"
+                    }
+                ),
+                400,
+            )
+
+        data = request.get_json()
+
+        # Actualizar campos opcionales
+        if "conector_id" in data:
+            nuevo_conector_id = int(data["conector_id"])
+            conector = Connector.query.get(nuevo_conector_id)
+
+            if not conector or not conector.activo:
+                return jsonify({"error": "Conector inválido o inactivo"}), 400
+
+            # Verificar que sea de la misma estación
+            if conector.estacion_id != reserva.estacion_id:
+                return (
+                    jsonify(
+                        {"error": "El conector debe pertenecer a la misma estación"}
+                    ),
+                    400,
+                )
+
+            reserva.conector_id = nuevo_conector_id
+
+        # Actualizar fecha/hora si viene en el request
+        if "fecha" in data:
+            nueva_fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+            reserva.fecha = nueva_fecha
+
+        if "hora_inicio" in data:
+            nueva_hora = datetime.strptime(data["hora_inicio"], "%H:%M").time()
+            reserva.hora_inicio = nueva_hora
+
+        if "duracion" in data:
+            nueva_duracion = float(data["duracion"])
+
+            if nueva_duracion < 0.5 or nueva_duracion > 8:
+                return (
+                    jsonify({"error": "Duración debe estar entre 0.5 y 8 horas"}),
+                    400,
+                )
+
+            reserva.duracion_horas = nueva_duracion
+
+        # Validar que la nueva fecha/hora sea futura
+        ahora = datetime.now()
+        fecha_hora_reserva = datetime.combine(reserva.fecha, reserva.hora_inicio)
+
+        if fecha_hora_reserva <= ahora:
+            return (
+                jsonify(
+                    {
+                        "error": "La nueva fecha y hora deben ser futuras. Por favor selecciona una fecha y hora futura."
+                    }
+                ),
+                400,
+            )
+
+        # Verificar disponibilidad con la nueva configuración
+        disponible, conflictos = verificar_disponibilidad_conector(
+            conector_id=reserva.conector_id,
+            fecha=reserva.fecha,
+            hora_inicio=reserva.hora_inicio,
+            duracion_horas=reserva.duracion_horas,
+            reserva_id_excluir=reserva_id,
+        )
+
+        if not disponible:
+            return (
+                jsonify(
+                    {
+                        "error": "El horario actualizado no está disponible",
+                        "conflictos": conflictos,
+                    }
+                ),
+                409,
+            )
+
+        db.session.commit()
+
+        return jsonify(
+            {
+                "message": "Reserva actualizada exitosamente",
+                "reserva": reserva.to_dict(include_conector_info=True),
+            }
+        )
+
+    except ValueError as e:
+        return jsonify({"error": f"Formato inválido: {str(e)}"}), 400
+    except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 
 @reservas_bp.route("/<int:reserva_id>", methods=["DELETE"])
 def cancelar_reserva(reserva_id):
-    """Cancelar una reserva y enviar email de confirmación."""
+    """Cancelar una reserva (solo si está 'activa')"""
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
 
@@ -369,35 +512,22 @@ def cancelar_reserva(reserva_id):
         reserva = Reserva.query.filter_by(
             id=reserva_id, user_id=session["user_id"]
         ).first()
+
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
-        user = User.query.get(session["user_id"])
-
-        codigo_reserva = reserva.codigo
-        reserva_data = {
-            "estacion_nombre": reserva.estacion_nombre,
-            "conector_nombre": reserva.conector.nombre if reserva.conector else "N/A",
-            "fecha": reserva.fecha.strftime("%d/%m/%Y"),
-            "hora_inicio": reserva.hora_inicio.strftime("%H:%M"),
-        }
+        if reserva.estado != "activa":
+            return (
+                jsonify(
+                    {
+                        "error": f"No se puede cancelar una reserva en estado '{reserva.estado}'"
+                    }
+                ),
+                400,
+            )
 
         reserva.estado = "cancelada"
         db.session.commit()
-
-        # 📧 Enviar email de cancelación (si está habilitado)
-        if current_app.config.get("EMAIL_ENABLED", True) and user:
-            try:
-                email_service = get_email_service()
-                email_service.enviar_cancelacion_reserva(
-                    destinatario_email=user.email,
-                    destinatario_nombre=user.username,
-                    codigo_reserva=codigo_reserva,
-                    reserva_data=reserva_data,
-                )
-                print(f"✅ Email de cancelación enviado a {user.email}")
-            except Exception as e:
-                print(f"⚠️ Error al enviar email de cancelación: {e}")
 
         return jsonify(
             {
@@ -411,11 +541,11 @@ def cancelar_reserva(reserva_id):
         return jsonify({"error": str(e)}), 500
 
 
-@reservas_bp.route("/<int:reserva_id>", methods=["PUT"])
-def actualizar_reserva(reserva_id):
+@reservas_bp.route("/<int:reserva_id>/reenviar-codigo", methods=["POST"])
+def reenviar_codigo(reserva_id):
     """
-    Actualizar una reserva existente con validación de disponibilidad por conector.
-    Permite cambiar el conector si se desea.
+    Reenviar el código de reserva por email.
+    Útil si el usuario no recibió el email original.
     """
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
@@ -424,152 +554,28 @@ def actualizar_reserva(reserva_id):
         reserva = Reserva.query.filter_by(
             id=reserva_id, user_id=session["user_id"]
         ).first()
+
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
-        data = request.get_json()
-
-        # Obtener nuevos valores o mantener los actuales
-        nuevo_conector_id = int(data.get("conector_id", reserva.conector_id))
-        nueva_fecha = (
-            datetime.strptime(data["fecha"], "%Y-%m-%d").date()
-            if "fecha" in data
-            else reserva.fecha
-        )
-        nueva_hora = (
-            datetime.strptime(data["hora_inicio"], "%H:%M").time()
-            if "hora_inicio" in data
-            else reserva.hora_inicio
-        )
-        nueva_duracion = (
-            float(data["duracion"]) if "duracion" in data else reserva.duracion_horas
-        )
-
-        # Si se cambia el conector, verificar que exista y esté activo
-        if nuevo_conector_id != reserva.conector_id:
-            nuevo_conector = Connector.query.get(nuevo_conector_id)
-            if not nuevo_conector:
-                return jsonify({"error": "Conector no encontrado"}), 404
-            if not nuevo_conector.activo:
-                return (
-                    jsonify({"error": "El conector seleccionado no está disponible"}),
-                    400,
-                )
-
-        # ✅ Validar fecha/hora futuras si se actualizan
-        if "fecha" in data or "hora_inicio" in data:
-            ahora = datetime.now()
-            fecha_hora_nueva = datetime.combine(nueva_fecha, nueva_hora)
-            if fecha_hora_nueva <= ahora:
-                return (
-                    jsonify(
-                        {
-                            "error": "No se puede actualizar a una fecha y hora pasada. Por favor selecciona una fecha y hora futura."
-                        }
-                    ),
-                    400,
-                )
-
-        # 🔒 Validar disponibilidad si se cambia algo relevante
-        if (
-            "conector_id" in data
-            or "fecha" in data
-            or "hora_inicio" in data
-            or "duracion" in data
-        ):
-            disponible, conflictos = verificar_disponibilidad_conector(
-                conector_id=nuevo_conector_id,
-                fecha=nueva_fecha,
-                hora_inicio=nueva_hora,
-                duracion_horas=nueva_duracion,
-                reserva_id_excluir=reserva_id,
-            )
-
-            if not disponible:
-                return (
-                    jsonify(
-                        {
-                            "error": "Conector no disponible",
-                            "message": "El horario seleccionado se solapa con otra reserva",
-                            "conflictos": conflictos,
-                        }
-                    ),
-                    409,
-                )
-
-        # Actualizar campos
-        if "conector_id" in data:
-            conector = Connector.query.get(nuevo_conector_id)
-            estacion = Station.query.get(conector.estacion_id)
-            reserva.conector_id = nuevo_conector_id
-            reserva.estacion_id = conector.estacion_id
-            reserva.estacion_nombre = (
-                estacion.nombre if estacion else reserva.estacion_nombre
-            )
-            reserva.estacion_direccion = (
-                estacion.direccion if estacion else reserva.estacion_direccion
-            )
-
-        if "fecha" in data:
-            reserva.fecha = nueva_fecha
-        if "hora_inicio" in data:
-            reserva.hora_inicio = nueva_hora
-        if "duracion" in data:
-            reserva.duracion_horas = nueva_duracion
-        if "estado" in data:
-            reserva.estado = data["estado"]
-
-        db.session.commit()
-
-        return jsonify(
-            {
-                "message": "Reserva actualizada exitosamente",
-                "reserva": reserva.to_dict(include_conector_info=True),
-            }
-        )
-
-    except ValueError as e:
-        return jsonify({"error": f"Formato de fecha/hora inválido: {str(e)}"}), 400
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-
-@reservas_bp.route("/<int:reserva_id>/reenviar-email", methods=["POST"])
-def reenviar_email_confirmacion(reserva_id):
-    """Reenviar email de confirmación de una reserva existente."""
-    if "user_id" not in session:
-        return jsonify({"error": "No autenticado"}), 401
-
-    try:
-        reserva = Reserva.query.filter_by(
-            id=reserva_id, user_id=session["user_id"]
-        ).first()
-        if not reserva:
-            return jsonify({"error": "Reserva no encontrada"}), 404
-
-        if reserva.estado != "activa":
-            return (
-                jsonify(
-                    {"error": "Solo se pueden reenviar emails de reservas activas"}
-                ),
-                400,
-            )
-
+        # Obtener usuario
         user = User.query.get(session["user_id"])
         if not user:
             return jsonify({"error": "Usuario no encontrado"}), 404
 
+        # Verificar que EMAIL esté habilitado
         if current_app.config.get("EMAIL_ENABLED", True):
             email_service = get_email_service()
-
-            success, mensaje, _ = email_service.enviar_confirmacion_reserva(
+            success, mensaje, codigo = email_service.enviar_confirmacion_reserva(
                 destinatario_email=user.email,
                 destinatario_nombre=user.username,
                 reserva=reserva,
             )
 
             if success:
+                # ✅ CORRECCIÓN: Marcar que el email fue enviado
+                reserva.codigo_enviado = True
+                db.session.commit()
                 return jsonify(
                     {"message": "Email reenviado exitosamente", "email": user.email}
                 )
@@ -689,14 +695,12 @@ def obtener_reservas_conector(conector_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ============================================
-# 🆕 ENDPOINT: VER RESERVAS POR ESTACIÓN (con info de conectores)
-# ============================================
-@reservas_bp.route("/estacion/<int:estacion_id>", methods=["GET"])
+# @reservas_bp.route("/estacion/<int:estacion_id>", methods=["GET"])
 def obtener_reservas_estacion(estacion_id):
     """
     Obtener todas las reservas activas de una estación específica.
-    Ahora muestra qué conector está usando cada reserva.
+    Ahora muestra qué conector está usando cada reserva
+    y envía email de confirmación si no se ha enviado aún.
     """
     try:
         fecha_str = request.args.get("fecha")
@@ -712,11 +716,83 @@ def obtener_reservas_estacion(estacion_id):
 
         reservas = query.order_by(Reserva.fecha, Reserva.hora_inicio).all()
 
+        # ------------------------
+        # Enviar correo por reservas nuevas (si no se ha enviado)
+        # ------------------------
+        email_service = get_email_service()
+
+        for r in reservas:
+            # Suponemos que agregamos este campo en Reserva: codigo_enviado (bool)
+            if not getattr(r, "codigo_enviado", False):
+                user = User.query.get(r.user_id)
+                if user:
+                    try:
+                        success, mensaje, codigo = (
+                            email_service.enviar_confirmacion_reserva(
+                                destinatario_email=user.email,
+                                destinatario_nombre=user.username,
+                                reserva=r,
+                            )
+                        )
+                        if success:
+                            r.codigo_enviado = True
+                            db.session.commit()
+                            print(
+                                f"✅ Email enviado a {user.email} para reserva {r.id}"
+                            )
+                        else:
+                            print(
+                                f"⚠️ No se pudo enviar email para reserva {r.id}: {mensaje}"
+                            )
+                    except Exception as e:
+                        print(f"⚠️ Error al enviar email para reserva {r.id}: {e}")
+
         return jsonify(
             {
                 "estacion_id": estacion_id,
                 "total_reservas": len(reservas),
                 "reservas": [r.to_dict(include_conector_info=True) for r in reservas],
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# 🆕 ENDPOINT: BUSCAR ESTACIÓN POR NOMBRE
+# ============================================
+@reservas_bp.route("/buscar-estacion", methods=["GET"])
+def buscar_estacion_por_nombre():
+    """
+    Buscar estación por nombre para obtener el ID local.
+
+    Query params:
+    - nombre: Nombre de la estación (requerido)
+
+    Retorna: La estación con sus conectores
+    """
+    try:
+        nombre = request.args.get("nombre")
+
+        if not nombre:
+            return jsonify({"error": "Falta el parámetro 'nombre'"}), 400
+
+        # Buscar estación por nombre (case-insensitive, coincidencia parcial)
+        estacion = Station.query.filter(Station.nombre.ilike(f"%{nombre}%")).first()
+
+        if not estacion:
+            return jsonify({"error": "Estación no encontrada"}), 404
+
+        # Obtener conectores de la estación
+        conectores = Connector.query.filter_by(
+            estacion_id=estacion.id, activo=True
+        ).all()
+
+        return jsonify(
+            {
+                "estacion": estacion.to_dict(include_connectors=True),
+                "estacion_id": estacion.id,
+                "total_conectores": len(conectores),
             }
         )
 

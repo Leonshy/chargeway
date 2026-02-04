@@ -7,16 +7,8 @@ class Reserva(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    conector_id = db.Column(db.Integer, db.ForeignKey("connectors.id"), nullable=True)
 
-    # 🔥 CAMBIO PRINCIPAL: conector_id ahora es REQUERIDO para nuevas reservas
-    # nullable=True permite que reservas viejas sigan funcionando
-    conector_id = db.Column(
-        db.Integer,
-        db.ForeignKey("connectors.id"),
-        nullable=True,  # ✅ True para compatibilidad con reservas existentes
-    )
-
-    # 📌 Mantenemos estos campos para retrocompatibilidad
     estacion_id = db.Column(db.Integer, nullable=False)
     estacion_nombre = db.Column(db.String(200))
     estacion_direccion = db.Column(db.String(300))
@@ -25,31 +17,27 @@ class Reserva(db.Model):
     hora_inicio = db.Column(db.Time, nullable=False)
     duracion_horas = db.Column(db.Float, nullable=False)
 
-    # Estados: activa, en_progreso, completada, cancelada
     estado = db.Column(db.String(50), default="activa")
-
-    # 🆕 CAMPOS PARA KIOSK
     hora_inicio_real = db.Column(db.DateTime, nullable=True)
     hora_fin_real = db.Column(db.DateTime, nullable=True)
     duracion_real_horas = db.Column(db.Float, nullable=True)
+
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+    codigo_enviado = db.Column(db.Boolean, default=False)  # ✅ NUEVO
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    codigo = db.Column(db.String(20), unique=True, nullable=False)
 
-    # 🔗 RELACIONES
     user = db.relationship("User", backref=db.backref("reservas", lazy=True))
     conector = db.relationship("Connector", backref=db.backref("reservas", lazy=True))
 
     def to_dict(self, include_user_info=False, include_conector_info=False):
-        """
-        Convertir a diccionario con opciones de incluir info del usuario y conector
-        """
         data = {
             "id": self.id,
             "codigo": self.codigo,
+            "codigo_enviado": self.codigo_enviado,
             "user_id": self.user_id,
             "conector_id": self.conector_id,
             "estacion_id": self.estacion_id,
@@ -71,7 +59,6 @@ class Reserva(db.Model):
                 if self.updated_at
                 else None
             ),
-            # Campos para kiosk
             "hora_inicio_real": (
                 self.hora_inicio_real.strftime("%Y-%m-%d %H:%M:%S")
                 if self.hora_inicio_real
@@ -85,7 +72,6 @@ class Reserva(db.Model):
             "duracion_real_horas": self.duracion_real_horas,
         }
 
-        # Incluir info del usuario si se solicita (para el kiosk)
         if include_user_info and self.user:
             data["usuario"] = {
                 "id": self.user.id,
@@ -94,7 +80,6 @@ class Reserva(db.Model):
                 "phone": self.user.phone,
             }
 
-        # 🆕 Incluir info del conector si se solicita
         if include_conector_info and self.conector:
             data["conector"] = {
                 "id": self.conector.id,
