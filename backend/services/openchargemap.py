@@ -1,5 +1,5 @@
 import requests
-import folium
+import os
 
 API_KEY = "f10c79d2-e68d-423c-ac00-d318a2845c78"  # Reemplaza con tu API Key real de OpenChargeMap
 
