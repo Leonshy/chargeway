@@ -1,45 +1,54 @@
-from datetime import datetime
+"""
+Modelo Connector (tabla: connectors)
+
+Esta tabla guarda conectores individuales por estación.
+Las reservas se harán a nivel conector (como definieron en el proyecto).
+"""
+
 from db import db
+from sqlalchemy.sql import func
+
 
 class Connector(db.Model):
     """
-    Modelo Connector
-    ----------------
-    Representa un punto físico de carga dentro de una estación.
-
-    ⚠️ Importante:
-    - Modelo SOLO estructural
-    - No se conecta todavía con reservas
-    - No usa ForeignKey para no acoplar
+    Representa un conector de carga asociado a una estación.
     """
 
     __tablename__ = "connectors"
 
-    # Clave primaria interna
+    # -------------------------
+    # Columnas
+    # -------------------------
+
+    # id: PK. Puedes usar el ID del "Connection" de OpenChargeMap si existe.
+    # Si no existe, autoincrement.
     id = db.Column(db.Integer, primary_key=True)
 
-    # ID lógico de la estación (sin FK estricta)
-    estacion_id = db.Column(db.Integer, nullable=False)
+    # FK a stations.id (en tu schema se llama estacion_id)
+    estacion_id = db.Column(
+        db.Integer,
+        db.ForeignKey("stations.id"),
+        nullable=False
+    )
 
-    # Nombre o código visible del conector
-    nombre = db.Column(db.String(50), nullable=False)
+    # Nombre interno o etiqueta del conector (ej: "Conector AC-01")
+    nombre = db.Column(db.String(120), nullable=False)
 
-    # Tipo de conector: AC, DC, CCS, CHAdeMO, etc.
-    tipo = db.Column(db.String(20), nullable=False)
+    # Tipo de conector (ej: Type2, CCS, CHAdeMO, etc.)
+    tipo = db.Column(db.String(80), nullable=True)
 
-    # Potencia del conector en kilovatios
-    potencia_kw = db.Column(db.Float, nullable=False)
+    # Potencia en kW (en tu schema es potencia_kw)
+    potencia_kw = db.Column(db.Float, nullable=False, default=0.0)
 
-    # Estado del conector (activo / inactivo)
-    activo = db.Column(db.Boolean, default=True)
+    # Estado activo/inactivo (para poder desactivar conectores si querés)
+    activo = db.Column(db.Boolean, nullable=False, default=True)
 
-    # Fecha de creación
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Timestamp de creación
+    created_at = db.Column(db.DateTime, server_default=func.current_timestamp())
 
     def to_dict(self):
         """
-        Devuelve el conector en formato diccionario
-        para ser usado en respuestas JSON.
+        Convierte el conector a dict para devolverlo por API.
         """
         return {
             "id": self.id,
@@ -48,5 +57,8 @@ class Connector(db.Model):
             "tipo": self.tipo,
             "potencia_kw": self.potencia_kw,
             "activo": self.activo,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+    def __repr__(self):
+        return f"<Connector id={self.id} estacion_id={self.estacion_id} nombre={self.nombre}>"
