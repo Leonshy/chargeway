@@ -8,6 +8,7 @@ import VehiculosEV from "./components/vehiculo";
 import AcercaDe from "./components/acercade";
 import AdminPanel from "./components/adminPanel";
 import StationKiosk from "./components/stationKiosk"; // 🆕 NUEVO
+import Perfil from "./components/perfil";
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -21,6 +22,7 @@ function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showKiosk, setShowKiosk] = useState(false); // 🆕 NUEVO
+  const [showPerfil, setShowPerfil] = useState(false); // 🆕 Estado para el modal
 
   // Verificar si hay sesión activa al cargar
   useEffect(() => {
@@ -113,6 +115,12 @@ function App() {
     // Puedes agregar lógica adicional aquí si lo necesitas
   };
 
+  // 🆕 Función para actualizar el estado local del usuario tras editar perfil
+  const handleProfileUpdate = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+  };
+
   if (loading) {
     return (
       <div
@@ -143,6 +151,7 @@ function App() {
         user={user}
         onLogout={handleLogout}
         isAdmin={isAdmin}
+        onPerfilClick={() => setShowPerfil(true)} // 🆕 Pasamos la función al Header
       />
 
       <section
@@ -164,6 +173,14 @@ function App() {
         />
       )}
 
+      {/* 🆕 MODAL DE PERFIL */}
+      {showPerfil && user && (
+        <Perfil 
+          user={user} 
+          onClose={() => setShowPerfil(false)} 
+          onUpdateSuccess={handleProfileUpdate}
+        />
+      )}
       {/* MODAL RESERVA */}
       {showReservaModal && estacionSeleccionada && (
         <ReservaModal
