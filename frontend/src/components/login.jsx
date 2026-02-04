@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
 
 function Login({ onClose, onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const recaptchaRef = useRef(null);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -22,9 +24,23 @@ function Login({ onClose, onLoginSuccess }) {
     setLoading(true);
     setError("");
 
+    // ============================================
+    // ✅ VALIDAR CAPTCHA SOLO EN REGISTRO
+    // ============================================
+    let recaptchaToken = null;
+    if (isRegister) {
+      recaptchaToken = recaptchaRef.current?.getValue();
+      
+      if (!recaptchaToken) {
+        setError("Por favor, completa el captcha");
+        setLoading(false);
+        return;
+      }
+    }
+
     const url = isRegister ? "/api/auth/register" : "/api/auth/login";
     const body = isRegister
-      ? formData
+      ? { ...formData, recaptcha_token: recaptchaToken }
       : { email: formData.email, password: formData.password };
 
     try {
@@ -42,12 +58,29 @@ function Login({ onClose, onLoginSuccess }) {
         onClose();
       } else {
         setError(data.error || "Error en la autenticación");
+        // Resetear captcha si falla
+        if (isRegister && recaptchaRef.current) {
+          recaptchaRef.current.reset();
+        }
       }
     } catch (err) {
       setError("Error de conexión con el servidor");
       console.error(err);
+      // Resetear captcha en caso de error
+      if (isRegister && recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSwitchMode = () => {
+    setIsRegister(!isRegister);
+    setError("");
+    // Resetear captcha al cambiar de modo
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
     }
   };
 
@@ -102,6 +135,25 @@ function Login({ onClose, onLoginSuccess }) {
             />
           )}
 
+          {/* ============================================ */}
+          {/* 🔒 CAPTCHA - SOLO VISIBLE EN REGISTRO */}
+          {/* ============================================ */}
+          {isRegister && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              margin: '15px 0',
+              transform: 'scale(0.95)',
+              transformOrigin: 'center'
+            }}>
+              <ReCAPTCHA
+                ref={recaptchaRef}
+                sitekey="6Lc-OGAsAAAAAFXfaThay_SxNnmibOPyoocQR5Di" // 👈 REEMPLAZA CON TU SITE KEY
+                theme="light"
+              />
+            </div>
+          )}
+
           <button type="submit" className="login-btn" disabled={loading}>
             {loading
               ? "Procesando..."
@@ -113,7 +165,7 @@ function Login({ onClose, onLoginSuccess }) {
 
         <p className="switch-text">
           {isRegister ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?"}{" "}
-          <span onClick={() => setIsRegister(!isRegister)}>
+          <span onClick={handleSwitchMode}>
             {isRegister ? "Inicia sesión aquí" : "Regístrate aquí"}
           </span>
         </p>
