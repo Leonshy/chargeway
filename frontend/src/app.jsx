@@ -6,7 +6,8 @@ import ReservaModal from "./components/reservaModal";
 import MisReservas from "./components/misReservas";
 import VehiculosEV from "./components/vehiculo";
 import AcercaDe from "./components/acercade";
-import AdminPanel from "./components/adminPanel"; // 🆕 NUEVO
+import AdminPanel from "./components/adminPanel";
+import StationKiosk from "./components/stationKiosk"; // 🆕 NUEVO
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -17,20 +18,33 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAcercaDe, setShowAcercaDe] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false); // 🆕 NUEVO
-  const [isAdmin, setIsAdmin] = useState(false); // 🆕 NUEVO
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showKiosk, setShowKiosk] = useState(false); // 🆕 NUEVO
+
+  // 🆕 NUEVO: Detectar si estamos en la ruta /kiosk
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === "/kiosk") {
+      setShowKiosk(true);
+    }
+  }, []);
 
   // Verificar si hay sesión activa al cargar
   useEffect(() => {
-    checkAuth();
-  }, []);
+    if (!showKiosk) {
+      checkAuth();
+    } else {
+      setLoading(false);
+    }
+  }, [showKiosk]);
 
-  // 🆕 NUEVO: Verificar si el usuario es admin
+  // Verificar si el usuario es admin
   useEffect(() => {
-    if (user) {
+    if (user && !showKiosk) {
       checkAdminStatus();
     }
-  }, [user]);
+  }, [user, showKiosk]);
 
   // Verificar autenticación
   const checkAuth = async () => {
@@ -58,7 +72,7 @@ function App() {
     }
   };
 
-  // 🆕 NUEVO: Verificar permisos de administrador
+  // Verificar permisos de administrador
   const checkAdminStatus = async () => {
     try {
       const response = await fetch("/api/admin/check-admin", {
@@ -92,7 +106,7 @@ function App() {
       });
 
       setUser(null);
-      setIsAdmin(false); // 🆕 NUEVO
+      setIsAdmin(false);
       localStorage.removeItem("user");
       alert("Sesión cerrada correctamente");
     } catch (err) {
@@ -129,6 +143,11 @@ function App() {
     );
   }
 
+  // 🆕 NUEVO: Si estamos en modo kiosk, mostrar solo el kiosk
+  if (showKiosk) {
+    return <StationKiosk />;
+  }
+
   return (
     <div style={{ height: "100vh", overflow: "hidden" }}>
       <Header
@@ -136,10 +155,10 @@ function App() {
         onReservasClick={() => setShowReservas(true)}
         onVehiculosClick={() => setShowVehiculos(true)}
         onAcercaDeClick={() => setShowAcercaDe(true)}
-        onAdminClick={() => setShowAdmin(true)} // 🆕 NUEVO
+        onAdminClick={() => setShowAdmin(true)}
         user={user}
         onLogout={handleLogout}
-        isAdmin={isAdmin} // 🆕 NUEVO
+        isAdmin={isAdmin}
       />
 
       <section
@@ -186,7 +205,7 @@ function App() {
       {/* MODAL ACERCA DE */}
       {showAcercaDe && <AcercaDe onClose={() => setShowAcercaDe(false)} />}
 
-      {/* 🆕 NUEVO: MODAL PANEL DE ADMINISTRACIÓN */}
+      {/* MODAL PANEL DE ADMINISTRACIÓN */}
       {showAdmin && user && isAdmin && (
         <AdminPanel user={user} onClose={() => setShowAdmin(false)} />
       )}
