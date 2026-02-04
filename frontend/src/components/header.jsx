@@ -10,7 +10,8 @@ function Header({
   onKioskClick,
   user,
   onLogout,
-  isAdmin
+  isAdmin,
+  onPerfilClick // 1. Recibimos la nueva función
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -20,13 +21,13 @@ function Header({
 
   const handleMenuItemClick = (callback) => {
     callback();
-    setMenuOpen(false); // Cierra el menú después de hacer clic
+    setMenuOpen(false);
   };
 
   return (
     <header className="header">
       <div className="header-container">
-        {/* Menú Hamburguesa + Logo */}
+        {/* Lado Izquierdo: Menú Hamburguesa + Logo */}
         <div className="header-left">
           <button 
             className={`hamburger-btn ${menuOpen ? 'active' : ''}`}
@@ -46,66 +47,52 @@ function Header({
 
         {/* Menú Desplegable */}
         <nav className={`dropdown-menu ${menuOpen ? 'open' : ''}`}>
-          <button
-            onClick={() => handleMenuItemClick(onReservasClick)}
-            className="menu-item"
-          >
+          <button onClick={() => handleMenuItemClick(onReservasClick)} className="menu-item">
             <i className="fa-solid fa-calendar-check"></i>
             <span>Mis Reservas</span>
           </button>
 
-          <button
-            onClick={() => handleMenuItemClick(onVehiculosClick)}
-            className="menu-item"
-          >
+          <button onClick={() => handleMenuItemClick(onVehiculosClick)} className="menu-item">
             <i className="fa-solid fa-car"></i>
             <span>Mis Vehículos</span>
           </button>
 
-          <button
-            onClick={() => handleMenuItemClick(onAcercaDeClick)}
-            className="menu-item"
-          >
+          <button onClick={() => handleMenuItemClick(onAcercaDeClick)} className="menu-item">
             <i className="fa-solid fa-info-circle"></i>
             <span>Acerca de</span>
           </button>
 
-          <button
-            onClick={() => handleMenuItemClick(onKioskClick)}
-            className="menu-item"
-          >
+          <button onClick={() => handleMenuItemClick(onKioskClick)} className="menu-item">
             <i className="fa-solid fa-charging-station"></i>
             <span>Modo Estación</span>
           </button>
 
-          {/* Botón Admin (solo para administradores) */}
           {isAdmin && (
-            <button
-              onClick={() => handleMenuItemClick(onAdminClick)}
-              className="menu-item menu-item-admin"
-            >
+            <button onClick={() => handleMenuItemClick(onAdminClick)} className="menu-item menu-item-admin">
               <i className="fa-solid fa-user-shield"></i>
               <span>Admin Panel</span>
             </button>
           )}
         </nav>
 
-        {/* Overlay para cerrar el menú al hacer clic fuera */}
         {menuOpen && (
-          <div 
-            className="menu-overlay" 
-            onClick={() => setMenuOpen(false)}
-          ></div>
+          <div className="menu-overlay" onClick={() => setMenuOpen(false)}></div>
         )}
 
-        {/* Usuario y Botón Salir (derecha) */}
+        {/* Lado Derecho: Usuario y Salir */}
         <div className="header-right">
           {user ? (
             <>
-              <div className="header-user-info">
+              {/* 2. AQUÍ ESTÁ EL CAMBIO: Convertimos el div en button */}
+              <button
+                onClick={onPerfilClick}
+                className="header-user-info"
+                title="Editar mi perfil"
+              >
                 <i className="fa-solid fa-user-circle"></i>
                 <span>{user.username}</span>
-              </div>
+              </button>
+
               <button
                 onClick={onLogout}
                 className="header-btn btn-logout"

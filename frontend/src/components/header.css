@@ -70,6 +70,66 @@
   transform: rotate(-45deg) translate(7px, -7px);
 }
 
+.header-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.15); /* Fondo original */
+  border-radius: 25px;
+  backdrop-filter: blur(10px);
+  
+  /* Propiedades de botón añadidas */
+  border: 1px solid transparent; /* Para evitar saltos al hacer hover */
+  cursor: pointer;
+  font-family: inherit; /* Heredar fuente */
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+/* Efecto Hover para indicar que es clicable */
+.header-user-info:hover {
+  background: rgba(255, 255, 255, 0.3); /* Más claro al pasar el mouse */
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.header-user-info:active {
+  transform: translateY(0);
+}
+
+.header-user-info i {
+  font-size: 1.5rem;
+  color: #ffd700;
+}
+
+.header-user-info span {
+  font-size: 1rem;
+}
+
+/* Ajuste responsive para móviles */
+@media (max-width: 768px) {
+  .header-user-info span {
+    display: none; /* Oculta el texto en pantallas pequeñas */
+  }
+
+  .header-user-info {
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  
+  .header-user-info i {
+    font-size: 1.2rem;
+    margin: 0;
+  }
+}
+
 /* Logo */
 .header-logo {
   display: flex;
