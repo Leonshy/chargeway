@@ -1,36 +1,141 @@
 """
 Servicio de Email para ChargeWay
 Envía confirmaciones de reserva con código QR
-VERSIÓN ADAPTADA: Usa el código de reserva ya generado en reservas_bp.py
+
+✅ Listo para SMTP con SSL (puerto 465) o STARTTLS (puerto 587)
+✅ Soporta "From Name" (nombre visible del remitente)
+✅ Soporta EMAIL_ENABLED para activar/desactivar sin romper la app
+✅ Timeout para evitar que se "cuelgue" la conexión
+✅ VERSIÓN ADAPTADA: Usa el código de reserva ya generado (reserva.codigo)
+✅ MVP: EMAIL_SSL_VERIFY=false permite evitar fallas de certificados en DEV
 """
+
+import os
+import ssl
 import smtplib
+from io import BytesIO
+from email.utils import formataddr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
-from datetime import datetime
 import qrcode
-from io import BytesIO
 
 
 class EmailService:
-    """Servicio para envío de emails de confirmación de reservas"""
+    """Servicio para envío de emails de confirmación/cancelación de reservas"""
 
-    def __init__(self, smtp_server, smtp_port, email_user, email_password):
+    def __init__(
+        self,
+        smtp_server: str,
+        smtp_port: int,
+        email_user: str,
+        email_password: str,
+        *,
+        from_name: str = "Chargeway - no te dejes de mover",
+        use_ssl: bool = True,
+        enabled: bool = True,
+        timeout_seconds: int = 12,
+        support_email: str = "soporte@chargeway.com",
+    ):
         """
         Inicializar servicio de email
 
         Args:
-            smtp_server: Servidor SMTP (ej: smtp.gmail.com)
-            smtp_port: Puerto SMTP (ej: 587)
+            smtp_server: Servidor SMTP (ej: mail.naranja.com.py)
+            smtp_port: Puerto SMTP (465 para SSL, 587 para STARTTLS)
             email_user: Email desde el cual enviar
-            email_password: Contraseña del email o App Password
+            email_password: Contraseña del email (NO hardcodear en el repo)
+            from_name: Nombre visible del remitente (display name)
+            use_ssl: True para SSL directo (SMTP_SSL). Normalmente True si puerto=465.
+            enabled: Permite activar/desactivar envío (MVP friendly)
+            timeout_seconds: Timeout para evitar bloqueos infinitos
+            support_email: Email de soporte mostrado en plantillas
         """
         self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
+        self.smtp_port = int(smtp_port)
         self.email_user = email_user
         self.email_password = email_password
 
-    def generar_qr_code(self, codigo_reserva):
+        self.from_name = from_name
+        self.use_ssl = bool(use_ssl)
+        self.enabled = bool(enabled)
+        self.timeout_seconds = int(timeout_seconds)
+        self.support_email = support_email
+
+    # -----------------------------
+    # Helpers de conexión SMTP
+    # -----------------------------
+    def _open_smtp_connection(self):
+        """
+        Abre la conexión SMTP de acuerdo al tipo de seguridad:
+
+        - Puerto 465: SSL directo con SMTP_SSL (NO se usa starttls())
+        - Puerto 587: SMTP normal + STARTTLS
+
+        Retorna:
+            Objeto SMTP conectado (context manager)
+        """
+        # Si el puerto es 465, forzamos SSL directo
+        if self.smtp_port == 465:
+            self.use_ssl = True
+
+        if self.use_ssl:
+            # SSL directo (465)
+            # ---------------------------------------------------------
+            # ⚠️ IMPORTANTE (MVP/HACKATÓN):
+            # Algunos servidores SMTP o entornos locales no tienen la
+            # cadena completa de certificados. Para no bloquear el demo,
+            # permitimos desactivar la verificación con EMAIL_SSL_VERIFY=false.
+            #
+            # En PRODUCCIÓN: EMAIL_SSL_VERIFY debe ser true.
+            # ---------------------------------------------------------
+            verify_ssl = os.getenv("EMAIL_SSL_VERIFY", "true").lower() == "true"
+
+            if verify_ssl:
+                # Contexto SSL normal (verifica certificados)
+                context = ssl.create_default_context()
+            else:
+                # Contexto SSL "inseguro": cifrado sí, verificación de certificado no
+                context = ssl._create_unverified_context()
+
+            return smtplib.SMTP_SSL(
+                host=self.smtp_server,
+                port=self.smtp_port,
+                timeout=self.timeout_seconds,
+                context=context,
+            )
+
+        # STARTTLS (típico 587)
+        server = smtplib.SMTP(
+            host=self.smtp_server,
+            port=self.smtp_port,
+            timeout=self.timeout_seconds,
+        )
+        server.ehlo()
+        server.starttls(context=ssl.create_default_context())
+        server.ehlo()
+        return server
+
+    def _send_message(self, msg: MIMEMultipart):
+        """
+        Envía el mensaje SMTP (login + send_message).
+        Respeta EMAIL_ENABLED para no enviar en entornos de demo.
+        """
+        if not self.enabled:
+            # Si está deshabilitado, no enviamos y devolvemos éxito "simulado"
+            return True, "EMAIL_ENABLED=false (envío deshabilitado por configuración)"
+
+        # Abrimos conexión y enviamos
+        with self._open_smtp_connection() as server:
+            server.login(self.email_user, self.email_password)
+            server.send_message(msg)
+
+        return True, "Email enviado exitosamente"
+
+    # -----------------------------
+    # QR
+    # -----------------------------
+    def generar_qr_code(self, codigo_reserva: str) -> BytesIO:
         """
         Genera un código QR con el código de reserva
 
@@ -50,22 +155,23 @@ class EmailService:
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Convertir a bytes
+
         buffer = BytesIO()
         img.save(buffer, format="PNG")
         buffer.seek(0)
-        
         return buffer
 
-    def crear_email_html(self, user_name, codigo_reserva, reserva_data):
+    # -----------------------------
+    # HTML templates
+    # -----------------------------
+    def crear_email_html(self, user_name: str, codigo_reserva: str, reserva_data: dict) -> str:
         """
-        Crea el contenido HTML del email de confirmación
+        Crea el contenido HTML del email de confirmación.
 
         Args:
             user_name: Nombre del usuario
-            codigo_reserva: Código único de la reserva (YA GENERADO)
-            reserva_data: Dict con datos de la reserva (estacion_nombre, fecha, hora, etc)
+            codigo_reserva: Código único de la reserva
+            reserva_data: Dict con datos (estacion_nombre, fecha, hora, etc)
 
         Returns:
             str: HTML del email
@@ -83,7 +189,7 @@ class EmailService:
                 <tr>
                     <td style="padding: 0;">
                         <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; overflow: hidden; margin-top: 20px; margin-bottom: 20px;">
-                            
+
                             <!-- Header -->
                             <tr>
                                 <td style="background: linear-gradient(135deg, #2c5f2d 0%, #4CAF50 100%); padding: 40px 20px; text-align: center;">
@@ -95,7 +201,7 @@ class EmailService:
                                     </p>
                                 </td>
                             </tr>
-                            
+
                             <!-- Saludo -->
                             <tr>
                                 <td style="padding: 30px 40px 20px 40px;">
@@ -107,7 +213,7 @@ class EmailService:
                                     </p>
                                 </td>
                             </tr>
-                            
+
                             <!-- Código de Reserva -->
                             <tr>
                                 <td style="padding: 0 40px 30px 40px;">
@@ -124,7 +230,7 @@ class EmailService:
                                     </div>
                                 </td>
                             </tr>
-                            
+
                             <!-- Detalles de la Reserva -->
                             <tr>
                                 <td style="padding: 0 40px 30px 40px;">
@@ -175,7 +281,7 @@ class EmailService:
                                     </table>
                                 </td>
                             </tr>
-                            
+
                             <!-- QR Code -->
                             <tr>
                                 <td style="padding: 0 40px 30px 40px; text-align: center;">
@@ -188,7 +294,7 @@ class EmailService:
                                     <img src="cid:qr_code" alt="Código QR" style="max-width: 200px; border: 2px solid #eeeeee; border-radius: 10px; padding: 10px;"/>
                                 </td>
                             </tr>
-                            
+
                             <!-- Instrucciones -->
                             <tr>
                                 <td style="padding: 0 40px 30px 40px;">
@@ -200,12 +306,12 @@ class EmailService:
                                             <li>Llega 5 minutos antes de tu hora reservada</li>
                                             <li>Ten el código de reserva o el QR listo en tu móvil</li>
                                             <li>Si necesitas cancelar, hazlo con al menos 2 horas de anticipación</li>
-                                            <li>Contacta al soporte si tienes algún problema: soporte@chargeway.com</li>
+                                            <li>Contacta al soporte si tienes algún problema: {self.support_email}</li>
                                         </ul>
                                     </div>
                                 </td>
                             </tr>
-                            
+
                             <!-- Footer -->
                             <tr>
                                 <td style="background: #f8f9fa; padding: 30px 40px; text-align: center; border-top: 1px solid #eeeeee;">
@@ -213,8 +319,8 @@ class EmailService:
                                         ¿Necesitas ayuda? Contáctanos
                                     </p>
                                     <p style="margin: 0 0 20px 0;">
-                                        <a href="mailto:soporte@chargeway.com" style="color: #4CAF50; text-decoration: none; font-weight: bold;">
-                                            soporte@chargeway.com
+                                        <a href="mailto:{self.support_email}" style="color: #4CAF50; text-decoration: none; font-weight: bold;">
+                                            {self.support_email}
                                         </a>
                                     </p>
                                     <p style="margin: 0; color: #999999; font-size: 12px;">
@@ -225,7 +331,7 @@ class EmailService:
                                     </p>
                                 </td>
                             </tr>
-                            
+
                         </table>
                     </td>
                 </tr>
@@ -235,81 +341,59 @@ class EmailService:
         """
         return html
 
+    # -----------------------------
+    # Public API
+    # -----------------------------
     def enviar_confirmacion_reserva(self, destinatario_email, destinatario_nombre, reserva):
         """
-        Envía email de confirmación de reserva con código QR
-        NOTA: Usa el código que YA está en reserva.codigo
-
-        Args:
-            destinatario_email: Email del usuario
-            destinatario_nombre: Nombre del usuario
-            reserva: Objeto Reserva (debe tener campo .codigo)
+        Envía email de confirmación de reserva con código QR.
+        Usa el código que YA está en reserva.codigo.
 
         Returns:
-            tuple: (success: bool, mensaje: str, codigo_reserva: str)
+            tuple: (success: bool, mensaje: str, codigo_reserva: str|None)
         """
         try:
-            # Usar el código que ya viene en la reserva (no generar uno nuevo)
-            # Si la reserva tiene un atributo 'codigo', usarlo
-            # Si no, intentar con 'codigo_reserva' (compatibilidad)
-            codigo_reserva = getattr(reserva, 'codigo', getattr(reserva, 'codigo_reserva', f'CHW-R{reserva.id:05d}'))
-
-            # Preparar datos de la reserva
-            reserva_data = {
-                'estacion_nombre': reserva.estacion_nombre,
-                'estacion_direccion': reserva.estacion_direccion,
-                'fecha': reserva.fecha.strftime('%d/%m/%Y'),
-                'hora_inicio': reserva.hora_inicio.strftime('%H:%M'),
-                'duracion_horas': reserva.duracion_horas
-            }
-
-            # Crear mensaje
-            msg = MIMEMultipart('related')
-            msg['Subject'] = f'✅ Reserva Confirmada - {codigo_reserva}'
-            msg['From'] = self.email_user
-            msg['To'] = destinatario_email
-
-            # Crear HTML
-            html_content = self.crear_email_html(
-                destinatario_nombre,
-                codigo_reserva,
-                reserva_data
+            codigo_reserva = getattr(
+                reserva,
+                "codigo",
+                getattr(reserva, "codigo_reserva", f"CHW-R{getattr(reserva, 'id', 0):05d}"),
             )
 
-            # Adjuntar HTML
-            html_part = MIMEText(html_content, 'html')
-            msg.attach(html_part)
+            reserva_data = {
+                "estacion_nombre": getattr(reserva, "estacion_nombre", "N/A"),
+                "estacion_direccion": getattr(reserva, "estacion_direccion", "N/A"),
+                "fecha": reserva.fecha.strftime("%d/%m/%Y") if getattr(reserva, "fecha", None) else "N/A",
+                "hora_inicio": reserva.hora_inicio.strftime("%H:%M") if getattr(reserva, "hora_inicio", None) else "N/A",
+                "duracion_horas": getattr(reserva, "duracion_horas", "N/A"),
+            }
 
-            # Generar y adjuntar QR Code
+            msg = MIMEMultipart("related")
+            msg["Subject"] = f"✅ Reserva Confirmada - {codigo_reserva}"
+            msg["From"] = formataddr((self.from_name, self.email_user))
+            msg["To"] = destinatario_email
+
+            html_content = self.crear_email_html(destinatario_nombre, codigo_reserva, reserva_data)
+            msg.attach(MIMEText(html_content, "html"))
+
             qr_buffer = self.generar_qr_code(codigo_reserva)
             qr_image = MIMEImage(qr_buffer.read())
-            qr_image.add_header('Content-ID', '<qr_code>')
+            qr_image.add_header("Content-ID", "<qr_code>")
+            qr_image.add_header("Content-Disposition", "inline", filename="qr.png")
             msg.attach(qr_image)
 
-            # Enviar email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.email_user, self.email_password)
-                server.send_message(msg)
-
-            return True, "Email enviado exitosamente", codigo_reserva
+            ok, mensaje = self._send_message(msg)
+            return True, mensaje, codigo_reserva
 
         except smtplib.SMTPAuthenticationError:
-            return False, "Error de autenticación con el servidor de email. Verifica las credenciales.", None
-        except smtplib.SMTPException as e:
+            return False, "Error de autenticación con el servidor de email. Verifica credenciales.", None
+        except (smtplib.SMTPException, OSError) as e:
             return False, f"Error al enviar email: {str(e)}", None
         except Exception as e:
             return False, f"Error inesperado: {str(e)}", None
 
     def enviar_cancelacion_reserva(self, destinatario_email, destinatario_nombre, codigo_reserva, reserva_data):
         """
-        Envía email de confirmación de cancelación
-
-        Args:
-            destinatario_email: Email del usuario
-            destinatario_nombre: Nombre del usuario
-            codigo_reserva: Código de la reserva cancelada
-            reserva_data: Dict con datos de la reserva
+        Envía email de confirmación de cancelación.
 
         Returns:
             tuple: (success: bool, mensaje: str)
@@ -329,14 +413,14 @@ class EmailService:
                     </h1>
                     <p>Hola, <strong>{destinatario_nombre}</strong></p>
                     <p>Tu reserva <strong>{codigo_reserva}</strong> ha sido cancelada exitosamente.</p>
-                    
+
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
                         <h3>Detalles de la reserva cancelada:</h3>
                         <p><strong>Estación:</strong> {reserva_data.get('estacion_nombre', 'N/A')}</p>
                         <p><strong>Fecha:</strong> {reserva_data.get('fecha', 'N/A')}</p>
                         <p><strong>Hora:</strong> {reserva_data.get('hora_inicio', 'N/A')}</p>
                     </div>
-                    
+
                     <p>Esperamos verte pronto en ChargeWay.</p>
                     <p style="color: #666; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
                         © 2026 ChargeWay - Este es un email automático
@@ -347,17 +431,56 @@ class EmailService:
             """
 
             msg = MIMEMultipart()
-            msg['Subject'] = f'❌ Reserva Cancelada - {codigo_reserva}'
-            msg['From'] = self.email_user
-            msg['To'] = destinatario_email
-            msg.attach(MIMEText(html, 'html'))
+            msg["Subject"] = f"❌ Reserva Cancelada - {codigo_reserva}"
+            msg["From"] = formataddr((self.from_name, self.email_user))
+            msg["To"] = destinatario_email
+            msg.attach(MIMEText(html, "html"))
 
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.email_user, self.email_password)
-                server.send_message(msg)
+            ok, mensaje = self._send_message(msg)
+            return True, mensaje
 
-            return True, "Email de cancelación enviado exitosamente"
-
-        except Exception as e:
+        except smtplib.SMTPAuthenticationError:
+            return False, "Error de autenticación con el servidor de email. Verifica credenciales."
+        except (smtplib.SMTPException, OSError) as e:
             return False, f"Error al enviar email de cancelación: {str(e)}"
+        except Exception as e:
+            return False, f"Error inesperado: {str(e)}"
+
+
+def email_service_from_env() -> EmailService:
+    """
+    Crea EmailService leyendo configuración desde .env / variables de entorno.
+
+    Variables esperadas:
+      SMTP_SERVER
+      SMTP_PORT
+      EMAIL_USER
+      EMAIL_PASSWORD
+      EMAIL_FROM_NAME
+      EMAIL_USE_SSL
+      EMAIL_ENABLED
+      EMAIL_TIMEOUT_SECONDS
+      SUPPORT_EMAIL
+    """
+    smtp_server = os.getenv("SMTP_SERVER", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "465"))
+    email_user = os.getenv("EMAIL_USER", "")
+    email_password = os.getenv("EMAIL_PASSWORD", "")
+
+    from_name = os.getenv("EMAIL_FROM_NAME", "Chargeway - no te dejes de mover")
+    use_ssl = os.getenv("EMAIL_USE_SSL", "true").lower() == "true"
+    enabled = os.getenv("EMAIL_ENABLED", "true").lower() == "true"
+    timeout_seconds = int(os.getenv("EMAIL_TIMEOUT_SECONDS", "12"))
+    support_email = os.getenv("SUPPORT_EMAIL", "soporte@chargeway.com")
+
+    return EmailService(
+        smtp_server=smtp_server,
+        smtp_port=smtp_port,
+        email_user=email_user,
+        email_password=email_password,
+        from_name=from_name,
+        use_ssl=use_ssl,
+        enabled=enabled,
+        timeout_seconds=timeout_seconds,
+        support_email=support_email,
+    )
