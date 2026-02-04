@@ -13,19 +13,32 @@ class Reserva(db.Model):
     fecha = db.Column(db.Date, nullable=False)
     hora_inicio = db.Column(db.Time, nullable=False)
     duracion_horas = db.Column(db.Float, nullable=False)
-    estado = db.Column(db.String(50), default="activa")  # activa, completada, cancelada
+
+    # Estados: activa, en_progreso, completada, cancelada
+    estado = db.Column(db.String(50), default="activa")
+
+    # 🆕 NUEVOS CAMPOS PARA KIOSK
+    hora_inicio_real = db.Column(db.DateTime, nullable=True)  # Cuando realmente llegó
+    hora_fin_real = db.Column(db.DateTime, nullable=True)  # Cuando realmente terminó
+    conector_id = db.Column(db.Integer, nullable=True)  # Qué conector usó
+    duracion_real_horas = db.Column(
+        db.Float, nullable=True
+    )  # Duración real de la carga
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
     codigo = db.Column(db.String(20), unique=True, nullable=False)
 
-
     # Relación con User
     user = db.relationship("User", backref=db.backref("reservas", lazy=True))
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_user_info=False):
+        """
+        Convertir a diccionario con opción de incluir info del usuario
+        """
+        data = {
             "id": self.id,
             "codigo": self.codigo,
             "user_id": self.user_id,
@@ -48,7 +61,31 @@ class Reserva(db.Model):
                 if self.updated_at
                 else None
             ),
+            # 🆕 Nuevos campos
+            "hora_inicio_real": (
+                self.hora_inicio_real.strftime("%Y-%m-%d %H:%M:%S")
+                if self.hora_inicio_real
+                else None
+            ),
+            "hora_fin_real": (
+                self.hora_fin_real.strftime("%Y-%m-%d %H:%M:%S")
+                if self.hora_fin_real
+                else None
+            ),
+            "conector_id": self.conector_id,
+            "duracion_real_horas": self.duracion_real_horas,
         }
 
+        # Incluir info del usuario si se solicita (para el kiosk)
+        if include_user_info and self.user:
+            data["usuario"] = {
+                "id": self.user.id,
+                "username": self.user.username,
+                "email": self.user.email,
+                "phone": self.user.phone,
+            }
+
+        return data
+
     def __repr__(self):
-        return f"<Reserva {self.id} - Estación {self.estacion_id} - Usuario {self.user_id}>"
+        return f"<Reserva {self.id} - Estación {self.estacion_id} - Usuario {self.user_id} - Estado: {self.estado}>"
