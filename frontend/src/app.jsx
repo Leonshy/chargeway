@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import Header from "./components/header";
 import Login from "./components/login";
-import MapComponent from "./components/MapComponent";
-import ReservaModal from "./components/ReservaModal";
-import MisReservas from "./components/MisReservas";
-import VehiculosEV from "./components/vehiculo"; 
-import AcercaDe from "./components/acercade"; // NUEVO
+import MapComponent from "./components/mapComponent";
+import ReservaModal from "./components/reservaModal";
+import MisReservas from "./components/misReservas";
+import VehiculosEV from "./components/vehiculo";
+import AcercaDe from "./components/acercade";
+import AdminPanel from "./components/adminPanel"; // 🆕 NUEVO
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
@@ -15,12 +16,21 @@ function App() {
   const [estacionSeleccionada, setEstacionSeleccionada] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showAcercaDe, setShowAcercaDe] = useState(false); // NUEVO
+  const [showAcercaDe, setShowAcercaDe] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false); // 🆕 NUEVO
+  const [isAdmin, setIsAdmin] = useState(false); // 🆕 NUEVO
 
   // Verificar si hay sesión activa al cargar
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // 🆕 NUEVO: Verificar si el usuario es admin
+  useEffect(() => {
+    if (user) {
+      checkAdminStatus();
+    }
+  }, [user]);
 
   // Verificar autenticación
   const checkAuth = async () => {
@@ -48,6 +58,23 @@ function App() {
     }
   };
 
+  // 🆕 NUEVO: Verificar permisos de administrador
+  const checkAdminStatus = async () => {
+    try {
+      const response = await fetch("/api/admin/check-admin", {
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(data.is_admin);
+      }
+    } catch (err) {
+      console.error("Error verificando permisos de admin:", err);
+      setIsAdmin(false);
+    }
+  };
+
   // Manejar login exitoso
   const handleLoginSuccess = (userData) => {
     setUser(userData);
@@ -65,6 +92,7 @@ function App() {
       });
 
       setUser(null);
+      setIsAdmin(false); // 🆕 NUEVO
       localStorage.removeItem("user");
       alert("Sesión cerrada correctamente");
     } catch (err) {
@@ -85,41 +113,44 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '1.2rem',
-        color: '#00c853'
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          fontSize: "1.2rem",
+          color: "#00c853"
+        }}
+      >
         <i className="fa-solid fa-bolt"></i>
-        <span style={{ marginLeft: '0.5rem' }}>Cargando...</span>
+        <span style={{ marginLeft: "0.5rem" }}>Cargando...</span>
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden' }}>
+    <div style={{ height: "100vh", overflow: "hidden" }}>
       <Header
         onLoginClick={() => setShowLogin(true)}
         onReservasClick={() => setShowReservas(true)}
         onVehiculosClick={() => setShowVehiculos(true)}
-        onAcercaDeClick={() => setShowAcercaDe(true)} // NUEVO
+        onAcercaDeClick={() => setShowAcercaDe(true)}
+        onAdminClick={() => setShowAdmin(true)} // 🆕 NUEVO
         user={user}
         onLogout={handleLogout}
+        isAdmin={isAdmin} // 🆕 NUEVO
       />
 
-      <section style={{
-        position: 'relative',
-        height: 'calc(100vh - 60px)',
-        width: '100%',
-        overflow: 'hidden'
-      }}>
-        <MapComponent
-          user={user}
-          onReserveClick={handleReserveClick}
-        />
+      <section
+        style={{
+          position: "relative",
+          height: "calc(100vh - 60px)",
+          width: "100%",
+          overflow: "hidden"
+        }}
+      >
+        <MapComponent user={user} onReserveClick={handleReserveClick} />
       </section>
 
       {/* MODAL LOGIN */}
@@ -144,25 +175,20 @@ function App() {
 
       {/* MODAL MIS RESERVAS */}
       {showReservas && user && (
-        <MisReservas
-          user={user}
-          onClose={() => setShowReservas(false)}
-        />
+        <MisReservas user={user} onClose={() => setShowReservas(false)} />
       )}
 
       {/* MODAL MIS VEHÍCULOS */}
       {showVehiculos && user && (
-        <VehiculosEV
-          user={user}
-          onClose={() => setShowVehiculos(false)}
-        />
+        <VehiculosEV user={user} onClose={() => setShowVehiculos(false)} />
       )}
 
       {/* MODAL ACERCA DE */}
-      {showAcercaDe && (
-        <AcercaDe
-          onClose={() => setShowAcercaDe(false)}
-        />
+      {showAcercaDe && <AcercaDe onClose={() => setShowAcercaDe(false)} />}
+
+      {/* 🆕 NUEVO: MODAL PANEL DE ADMINISTRACIÓN */}
+      {showAdmin && user && isAdmin && (
+        <AdminPanel user={user} onClose={() => setShowAdmin(false)} />
       )}
     </div>
   );
