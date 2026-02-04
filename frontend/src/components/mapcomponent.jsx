@@ -85,13 +85,18 @@ function MapComponent({ user, onReserveClick }) {
     
     // Estados y Referencias
     const [userPos, setUserPos] = useState(null); 
-    const [destinoRuta, setDestinoRuta] = useState(null); // --- NUEVO ESTADO PARA LA RUTA ---
+    const [destinoRuta, setDestinoRuta] = useState(null);
+    const [geolocalizando, setGeolocalizando] = useState(false); // ✅ NUEVO ESTADO
     
     const mapRef = useRef(null); 
     const markersRef = useRef({}); 
 
     useEffect(() => {
         fetchEstaciones();
+        // ============================================
+        // ✅ AUTODETECTAR UBICACIÓN AL CARGAR
+        // ============================================
+        autodetectarUbicacion();
     }, []);
 
     const fetchEstaciones = async () => {
@@ -106,10 +111,76 @@ function MapComponent({ user, onReserveClick }) {
         }
     };
 
+    // ============================================
+    // ✅ FUNCIÓN DE GEOLOCALIZACIÓN AUTOMÁTICA
+    // ============================================
+    const autodetectarUbicacion = () => {
+        if (!navigator.geolocation) {
+            console.warn('Geolocalización no soportada por el navegador');
+            return;
+        }
+
+        setGeolocalizando(true);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                const nuevaPos = { lat: latitude, lng: longitude };
+                
+                setUserPos(nuevaPos);
+                
+                // Centrar el mapa en la ubicación detectada
+                if (mapRef.current) {
+                    mapRef.current.flyTo([latitude, longitude], 15, {
+                        duration: 1.5
+                    });
+                }
+                
+                setGeolocalizando(false);
+                console.log('✅ Ubicación detectada:', nuevaPos);
+            },
+            (error) => {
+                console.warn('⚠️ Error al obtener ubicación:', error.message);
+                setGeolocalizando(false);
+                
+                // Mensajes de error específicos
+                if (error.code === error.PERMISSION_DENIED) {
+                    console.log('Usuario denegó el permiso de ubicación');
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    console.log('Información de ubicación no disponible');
+                } else if (error.code === error.TIMEOUT) {
+                    console.log('Tiempo de espera agotado');
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    };
+
+    // ============================================
+    // ✅ FUNCIÓN PARA CENTRAR EN TU MARCADOR
+    // ============================================
+    const centrarEnMarcador = () => {
+        if (!userPos) {
+            alert("⚠️ No hay ninguna ubicación marcada. Haz clic en el mapa o permite la geolocalización.");
+            return;
+        }
+
+        if (mapRef.current) {
+            mapRef.current.flyTo([userPos.lat, userPos.lng], 16, {
+                duration: 1.5,
+                easeLinearity: 0.25
+            });
+        }
+    };
+
     // --- LÓGICA MODIFICADA: Buscar, Mover y TRAZAR RUTA ---
     const buscarMasCercana = () => {
         if (!userPos) {
-            alert("⚠️ Primero haz clic en el mapa para marcar tu ubicación.");
+            alert("⚠️ Primero haz clic en el mapa para marcar tu ubicación o permite la geolocalización automática.");
             return;
         }
 
@@ -301,14 +372,66 @@ function MapComponent({ user, onReserveClick }) {
                 })}
             </MapContainer>
 
-            {/* --- BOTÓN FLOTANTE --- */}
+            {/* ============================================ */}
+            {/* ✅ BOTÓN FLOTANTE: CENTRAR EN MI UBICACIÓN */}
+            {/* ============================================ */}
+            <button
+                onClick={centrarEnMarcador}
+                disabled={!userPos}
+                style={{
+                    position: 'absolute',
+                    bottom: '25px',
+                    right: '25px',
+                    zIndex: 1000,
+                    background: userPos ? '#28a745' : '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    fontSize: '24px',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                    cursor: userPos ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    opacity: userPos ? 1 : 0.6
+                }}
+                onMouseOver={(e) => {
+                    if (userPos) e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                }}
+                title={userPos ? "Centrar en mi ubicación" : "No hay ubicación marcada"}
+            >
+                <i className="fa-solid fa-location-crosshairs"></i>
+            </button>
+
+            {/* --- BOTÓN FLOTANTE: BUSCAR Y TRAZAR RUTA --- */}
             <button
                 onClick={buscarMasCercana}
                 style={{
-                    position: 'absolute', bottom: '25px', left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
-                    background: '#007bff', color: 'white', border: 'none', borderRadius: '50px', padding: '12px 25px',
-                    fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s ease', whiteSpace: 'nowrap'
+                    position: 'absolute', 
+                    bottom: '25px', 
+                    left: '50%', 
+                    transform: 'translateX(-50%)', 
+                    zIndex: 1000,
+                    background: '#007bff', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '50px', 
+                    padding: '12px 25px',
+                    fontSize: '16px', 
+                    fontWeight: 'bold', 
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', 
+                    cursor: 'pointer',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px', 
+                    transition: 'all 0.2s ease', 
+                    whiteSpace: 'nowrap'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.transform = 'translateX(-50%) scale(1.05)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'translateX(-50%) scale(1)'}
@@ -316,6 +439,29 @@ function MapComponent({ user, onReserveClick }) {
                 <i className="fa-solid fa-route"></i>
                 Buscar y Trazar Ruta Más Cercana
             </button>
+
+            {/* Indicador de geolocalización en progreso */}
+            {geolocalizando && (
+                <div style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    background: 'rgba(0, 123, 255, 0.9)',
+                    color: 'white',
+                    padding: '10px 20px',
+                    borderRadius: '25px',
+                    fontSize: '14px',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}>
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                    Detectando tu ubicación...
+                </div>
+            )}
         </div>
     );
 }
