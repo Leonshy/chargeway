@@ -9,19 +9,20 @@ from services.email_service import EmailService
 import random
 import string
 
+
 # Función para generar código único de reserva
 def generar_codigo_reserva(longitud=8):
     caracteres = string.ascii_uppercase + string.digits
-    return ''.join(random.choices(caracteres, k=longitud))
+    return "".join(random.choices(caracteres, k=longitud))
 
 
 def get_email_service():
     """Helper para obtener el servicio de email configurado"""
     return EmailService(
-        smtp_server=current_app.config['SMTP_SERVER'],
-        smtp_port=current_app.config['SMTP_PORT'],
-        email_user=current_app.config['EMAIL_USER'],
-        email_password=current_app.config['EMAIL_PASSWORD']
+        smtp_server=current_app.config["SMTP_SERVER"],
+        smtp_port=current_app.config["SMTP_PORT"],
+        email_user=current_app.config["EMAIL_USER"],
+        email_password=current_app.config["EMAIL_PASSWORD"],
     )
 
 
@@ -36,8 +37,7 @@ def obtener_reservas():
 
     try:
         reservas = (
-            Reserva.query
-            .filter_by(user_id=session["user_id"])
+            Reserva.query.filter_by(user_id=session["user_id"])
             .order_by(Reserva.fecha.desc())
             .all()
         )
@@ -95,36 +95,37 @@ def crear_reserva():
         email_enviado = False
         email_error = None
 
-        if current_app.config.get('EMAIL_ENABLED', True):
+        if current_app.config.get("EMAIL_ENABLED", True):
             try:
                 email_service = get_email_service()
-                
+
                 # Crear objeto mock con la estructura que espera el servicio de email
                 class ReservaParaEmail:
                     def __init__(self, reserva_obj):
                         self.id = reserva_obj.id
+                        self.codigo = reserva_obj.codigo
                         self.estacion_nombre = reserva_obj.estacion_nombre
                         self.estacion_direccion = reserva_obj.estacion_direccion
                         self.fecha = reserva_obj.fecha
                         self.hora_inicio = reserva_obj.hora_inicio
                         self.duracion_horas = reserva_obj.duracion_horas
-                
+
                 reserva_email = ReservaParaEmail(reserva)
-                
+
                 # Enviar email (pero usamos tu código en lugar del generado por el servicio)
                 success, mensaje, _ = email_service.enviar_confirmacion_reserva(
                     destinatario_email=user.email,
                     destinatario_nombre=user.username,
-                    reserva=reserva_email
+                    reserva=reserva_email,
                 )
-                
+
                 if success:
                     email_enviado = True
                     print(f"✅ Email enviado a {user.email} - Código: {codigo_reserva}")
                 else:
                     email_error = mensaje
                     print(f"⚠️ Error al enviar email: {mensaje}")
-                    
+
             except Exception as e:
                 email_error = str(e)
                 print(f"❌ Excepción al enviar email: {e}")
@@ -138,12 +139,14 @@ def crear_reserva():
         response_data = {
             "message": "Reserva creada exitosamente",
             "reserva": reserva.to_dict(),
-            "email_enviado": email_enviado
+            "email_enviado": email_enviado,
         }
 
         # Si hubo error en el email, informar pero no fallar
         if email_error:
-            response_data["email_warning"] = f"Reserva creada pero no se pudo enviar el email: {email_error}"
+            response_data["email_warning"] = (
+                f"Reserva creada pero no se pudo enviar el email: {email_error}"
+            )
 
         return jsonify(response_data), 201
 
@@ -163,8 +166,7 @@ def obtener_reserva(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id,
-            user_id=session["user_id"]
+            id=reserva_id, user_id=session["user_id"]
         ).first()
 
         if not reserva:
@@ -183,8 +185,7 @@ def cancelar_reserva(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id,
-            user_id=session["user_id"]
+            id=reserva_id, user_id=session["user_id"]
         ).first()
 
         if not reserva:
@@ -192,13 +193,13 @@ def cancelar_reserva(reserva_id):
 
         # Obtener usuario para enviar email
         user = User.query.get(session["user_id"])
-        
+
         # Guardar datos antes de cambiar estado
         codigo_reserva = reserva.codigo
         reserva_data = {
-            'estacion_nombre': reserva.estacion_nombre,
-            'fecha': reserva.fecha.strftime('%d/%m/%Y'),
-            'hora_inicio': reserva.hora_inicio.strftime('%H:%M')
+            "estacion_nombre": reserva.estacion_nombre,
+            "fecha": reserva.fecha.strftime("%d/%m/%Y"),
+            "hora_inicio": reserva.hora_inicio.strftime("%H:%M"),
         }
 
         # Cambiar estado
@@ -206,24 +207,26 @@ def cancelar_reserva(reserva_id):
         db.session.commit()
 
         # 📧 Enviar email de cancelación
-        if current_app.config.get('EMAIL_ENABLED', True) and user:
+        if current_app.config.get("EMAIL_ENABLED", True) and user:
             try:
                 email_service = get_email_service()
                 email_service.enviar_cancelacion_reserva(
                     destinatario_email=user.email,
                     destinatario_nombre=user.username,
                     codigo_reserva=codigo_reserva,
-                    reserva_data=reserva_data
+                    reserva_data=reserva_data,
                 )
                 print(f"✅ Email de cancelación enviado a {user.email}")
             except Exception as e:
                 print(f"⚠️ Error al enviar email de cancelación: {e}")
 
-        return jsonify({
-            "message": "Reserva cancelada exitosamente",
-            "reserva": reserva.to_dict(),
-        })
-        
+        return jsonify(
+            {
+                "message": "Reserva cancelada exitosamente",
+                "reserva": reserva.to_dict(),
+            }
+        )
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -237,8 +240,7 @@ def actualizar_reserva(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id,
-            user_id=session["user_id"]
+            id=reserva_id, user_id=session["user_id"]
         ).first()
 
         if not reserva:
@@ -257,11 +259,13 @@ def actualizar_reserva(reserva_id):
 
         db.session.commit()
 
-        return jsonify({
-            "message": "Reserva actualizada exitosamente",
-            "reserva": reserva.to_dict(),
-        })
-        
+        return jsonify(
+            {
+                "message": "Reserva actualizada exitosamente",
+                "reserva": reserva.to_dict(),
+            }
+        )
+
     except ValueError as e:
         return jsonify({"error": f"Formato de fecha/hora inválido: {str(e)}"}), 400
     except Exception as e:
@@ -280,47 +284,51 @@ def reenviar_email_confirmacion(reserva_id):
 
     try:
         reserva = Reserva.query.filter_by(
-            id=reserva_id,
-            user_id=session["user_id"]
+            id=reserva_id, user_id=session["user_id"]
         ).first()
 
         if not reserva:
             return jsonify({"error": "Reserva no encontrada"}), 404
 
         if reserva.estado != "activa":
-            return jsonify({"error": "Solo se pueden reenviar emails de reservas activas"}), 400
+            return (
+                jsonify(
+                    {"error": "Solo se pueden reenviar emails de reservas activas"}
+                ),
+                400,
+            )
 
         user = User.query.get(session["user_id"])
         if not user:
             return jsonify({"error": "Usuario no encontrado"}), 404
 
         # Reenviar email
-        if current_app.config.get('EMAIL_ENABLED', True):
+        if current_app.config.get("EMAIL_ENABLED", True):
             email_service = get_email_service()
-            
+
             # Crear objeto para email
             class ReservaParaEmail:
                 def __init__(self, reserva_obj):
                     self.id = reserva_obj.id
+                    self.codigo = reserva_obj.codigo
                     self.estacion_nombre = reserva_obj.estacion_nombre
                     self.estacion_direccion = reserva_obj.estacion_direccion
                     self.fecha = reserva_obj.fecha
                     self.hora_inicio = reserva_obj.hora_inicio
                     self.duracion_horas = reserva_obj.duracion_horas
-            
+
             reserva_email = ReservaParaEmail(reserva)
-            
+
             success, mensaje, _ = email_service.enviar_confirmacion_reserva(
                 destinatario_email=user.email,
                 destinatario_nombre=user.username,
-                reserva=reserva_email
+                reserva=reserva_email,
             )
 
             if success:
-                return jsonify({
-                    "message": "Email reenviado exitosamente",
-                    "email": user.email
-                })
+                return jsonify(
+                    {"message": "Email reenviado exitosamente", "email": user.email}
+                )
             else:
                 return jsonify({"error": mensaje}), 500
         else:
