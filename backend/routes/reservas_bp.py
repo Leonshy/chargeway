@@ -174,48 +174,6 @@ def crear_reserva():
                 409,
             )  # 409 Conflict
 
-        # ============================================
-        # ✅ VALIDAR QUE LA FECHA Y HORA SEAN FUTURAS
-        # ============================================
-        ahora = datetime.now()
-        fecha_hora_reserva = datetime.combine(fecha, hora_inicio)
-        
-        if fecha_hora_reserva <= ahora:
-            return jsonify({
-                "error": "No se puede reservar en una fecha y hora pasada. Por favor selecciona una fecha y hora futura."
-            }), 400
-
-        # ============================================
-        # ✅ VALIDAR QUE NO TENGA NINGUNA RESERVA ACTIVA
-        # ============================================
-        from datetime import timedelta
-        
-        # Buscar cualquier reserva activa del usuario
-        reservas_activas = Reserva.query.filter_by(
-            user_id=session["user_id"],
-            estado="activa"
-        ).all()
-        
-        # Si tiene alguna reserva activa, verificar si ya terminó
-        for reserva_activa in reservas_activas:
-            # Calcular el fin de la reserva activa
-            fecha_hora_inicio = datetime.combine(reserva_activa.fecha, reserva_activa.hora_inicio)
-            fecha_hora_fin = fecha_hora_inicio + timedelta(hours=reserva_activa.duracion_horas)
-            
-            # Si la reserva activa aún no ha terminado (está en curso o es futura)
-            if fecha_hora_fin > ahora:
-                return jsonify({
-                    "error": f"Ya tienes una reserva activa. Finaliza a las {fecha_hora_fin.strftime('%H:%M del %d/%m/%Y')}. No puedes hacer otra reserva hasta que termine.",
-                    "reserva_activa": {
-                        "estacion": reserva_activa.estacion_nombre,
-                        "fecha": reserva_activa.fecha.strftime('%d/%m/%Y'),
-                        "hora_inicio": reserva_activa.hora_inicio.strftime('%H:%M'),
-                        "hora_fin": fecha_hora_fin.strftime('%H:%M'),
-                        "duracion_horas": reserva_activa.duracion_horas,
-                        "codigo": reserva_activa.codigo
-                    }
-                }), 400
-
         # Generar código único
         codigo_reserva = generar_codigo_reserva()
 
@@ -255,11 +213,7 @@ def crear_reserva():
                         self.fecha = reserva_obj.fecha
                         self.hora_inicio = reserva_obj.hora_inicio
                         self.duracion_horas = reserva_obj.duracion_horas
-<<<<<<< HEAD
-                        
-=======
 
->>>>>>> 4df404aa8ab65301854a5510ecdca64b650cdd1f
                 reserva_email = ReservaParaEmail(reserva)
 
                 # Enviar email
@@ -438,25 +392,6 @@ def actualizar_reserva(reserva_id):
 
         data = request.get_json()
 
-<<<<<<< HEAD
-        # ============================================
-        # ✅ VALIDAR FECHA Y HORA SI SE ESTÁN ACTUALIZANDO
-        # ============================================
-        if "fecha" in data or "hora_inicio" in data:
-            # Obtener la fecha y hora actuales o nuevas
-            nueva_fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date() if "fecha" in data else reserva.fecha
-            nueva_hora = datetime.strptime(data["hora_inicio"], "%H:%M").time() if "hora_inicio" in data else reserva.hora_inicio
-            
-            # Validar que sean futuras
-            ahora = datetime.now()
-            fecha_hora_nueva = datetime.combine(nueva_fecha, nueva_hora)
-            
-            if fecha_hora_nueva <= ahora:
-                return jsonify({
-                    "error": "No se puede actualizar a una fecha y hora pasada. Por favor selecciona una fecha y hora futura."
-                }), 400
-
-=======
         # Obtener valores actuales o nuevos
         nueva_fecha = (
             datetime.strptime(data["fecha"], "%Y-%m-%d").date()
@@ -497,7 +432,6 @@ def actualizar_reserva(reserva_id):
                 )
 
         # Actualizar campos
->>>>>>> 4df404aa8ab65301854a5510ecdca64b650cdd1f
         if "fecha" in data:
             reserva.fecha = nueva_fecha
         if "hora_inicio" in data:
