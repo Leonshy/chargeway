@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, session
 from db import db
 from models.vehiculos import Auto
-from models.user_vehiculo import UserVehiculo
+from models.vehiculo_registrado import VehiculoRegistrado
 
 vehiculos_bp = Blueprint("vehiculos_bp", __name__, url_prefix="/api")
 
@@ -13,33 +13,36 @@ def get_autos():
         autos = Auto.query.order_by(Auto.marca, Auto.modelo).all()
         return jsonify([auto.to_dict() for auto in autos]), 200
     except Exception as e:
+        print(f"Error en get_autos: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @vehiculos_bp.route("/mis-vehiculos/", methods=["GET"])
 def get_mis_vehiculos():
-    """Obtener vehículos del usuario actual"""
+    """Obtener vehículos registrados del usuario"""
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
 
     try:
-        vehiculos = (
-            db.session.query(UserVehiculo, Auto)
-            .join(Auto, UserVehiculo.auto_id == Auto.id)
-            .filter(UserVehiculo.user_id == session["user_id"])
-            .order_by(UserVehiculo.created_at.desc())
-            .all()
-        )
+        # Obtener los registros del usuario
+        registrados = VehiculoRegistrado.query.filter_by(
+            user_id=session["user_id"]
+        ).order_by(VehiculoRegistrado.created_at.desc()).all()
         
         result = []
-        for user_vehiculo, auto in vehiculos:
-            vehiculo_data = auto.to_dict()
-            vehiculo_data['id'] = user_vehiculo.id  # ID de la relación, no del auto
-            vehiculo_data['created_at'] = user_vehiculo.created_at.strftime('%d/%m/%Y %H:%M')
-            result.append(vehiculo_data)
+        for registro in registrados:
+            # Buscar la info completa del auto
+            auto = Auto.query.get(registro.autos_id)
+            
+            if auto:
+                vehiculo_data = auto.to_dict()
+                vehiculo_data['id'] = registro.id  # ID del registro
+                vehiculo_data['created_at'] = registro.created_at.strftime('%d/%m/%Y %H:%M') if registro.created_at else None
+                result.append(vehiculo_data)
         
         return jsonify(result), 200
     except Exception as e:
+        print(f"Error en get_mis_vehiculos: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -51,59 +54,61 @@ def add_vehiculo():
 
     try:
         data = request.get_json()
-        auto_id = data.get('auto_id')
+        autos_id = data.get('auto_id')
         
-        if not auto_id:
+        if not autos_id:
             return jsonify({"error": "auto_id es requerido"}), 400
         
         # Verificar que el auto existe
-        auto = Auto.query.get(auto_id)
+        auto = Auto.query.get(autos_id)
         if not auto:
-            return jsonify({"error": "Auto no encontrado"}), 404
+            return jsonify({"error": "Vehículo no encontrado"}), 404
         
-        # Verificar que el usuario no tenga ya este auto
-        existe = UserVehiculo.query.filter_by(
+        # Verificar que el usuario no lo tenga ya
+        existe = VehiculoRegistrado.query.filter_by(
             user_id=session["user_id"],
-            auto_id=auto_id
+            autos_id=autos_id
         ).first()
         
         if existe:
             return jsonify({"error": "Ya tienes este vehículo registrado"}), 400
         
-        # Crear la relación
-        user_vehiculo = UserVehiculo(
+        # Crear el registro
+        registro = VehiculoRegistrado(
             user_id=session["user_id"],
-            auto_id=auto_id
+            autos_id=autos_id
         )
         
-        db.session.add(user_vehiculo)
+        db.session.add(registro)
         db.session.commit()
         
         return jsonify({"message": "Vehículo agregado exitosamente"}), 201
     except Exception as e:
         db.session.rollback()
+        print(f"Error en add_vehiculo: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-@vehiculos_bp.route("/mis-vehiculos/<int:vehiculo_id>", methods=["DELETE"])
-def delete_vehiculo(vehiculo_id):
+@vehiculos_bp.route("/mis-vehiculos/<int:registro_id>", methods=["DELETE"])
+def delete_vehiculo(registro_id):
     """Eliminar vehículo del usuario"""
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
 
     try:
-        vehiculo = UserVehiculo.query.filter_by(
-            id=vehiculo_id,
+        registro = VehiculoRegistrado.query.filter_by(
+            id=registro_id,
             user_id=session["user_id"]
         ).first()
         
-        if not vehiculo:
+        if not registro:
             return jsonify({"error": "Vehículo no encontrado"}), 404
         
-        db.session.delete(vehiculo)
+        db.session.delete(registro)
         db.session.commit()
         
         return jsonify({"message": "Vehículo eliminado exitosamente"}), 200
     except Exception as e:
         db.session.rollback()
+        print(f"Error en delete_vehiculo: {e}")
         return jsonify({"error": str(e)}), 500
