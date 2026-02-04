@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, session, current_app
 from db import db
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import and_, or_
 
 from models.reserva import Reserva
 from models.user import User
@@ -24,6 +25,86 @@ def get_email_service():
         email_user=current_app.config["EMAIL_USER"],
         email_password=current_app.config["EMAIL_PASSWORD"],
     )
+
+
+# ============================================
+# 🔒 NUEVA FUNCIÓN: VERIFICAR DISPONIBILIDAD
+# ============================================
+def verificar_disponibilidad_estacion(
+    estacion_id, fecha, hora_inicio, duracion_horas, reserva_id_excluir=None
+):
+    """
+    Verifica si la estación está disponible en el horario solicitado.
+
+    Args:
+        estacion_id: ID de la estación
+        fecha: Fecha de la reserva (date object)
+        hora_inicio: Hora de inicio (time object)
+        duracion_horas: Duración en horas (float)
+        reserva_id_excluir: ID de reserva a excluir (útil para actualizaciones)
+
+    Returns:
+        tuple: (disponible: bool, reservas_conflictivas: list)
+    """
+    # Convertir hora_inicio a datetime para hacer cálculos
+    fecha_hora_inicio = datetime.combine(fecha, hora_inicio)
+    fecha_hora_fin = fecha_hora_inicio + timedelta(hours=duracion_horas)
+
+    # Extraer solo la hora de fin para comparación
+    hora_fin = fecha_hora_fin.time()
+    fecha_fin = fecha_hora_fin.date()
+
+    # Buscar reservas en la misma estación y fecha que NO estén canceladas
+    query = Reserva.query.filter(
+        and_(
+            Reserva.estacion_id == estacion_id,
+            Reserva.estado.in_(["activa", "completada"]),  # Ignorar canceladas
+            or_(
+                # Caso 1: Reservas que terminan después de la misma fecha
+                Reserva.fecha == fecha,
+                # Caso 2: Reservas que cruzan la medianoche
+                and_(
+                    Reserva.fecha < fecha,
+                    Reserva.fecha
+                    >= fecha,  # Verificar día siguiente si cruza medianoche
+                ),
+            ),
+        )
+    )
+
+    # Si estamos actualizando una reserva, excluirla de la búsqueda
+    if reserva_id_excluir:
+        query = query.filter(Reserva.id != reserva_id_excluir)
+
+    reservas_existentes = query.all()
+
+    # Verificar solapamientos
+    reservas_conflictivas = []
+
+    for reserva in reservas_existentes:
+        # Calcular hora de fin de la reserva existente
+        reserva_inicio = datetime.combine(reserva.fecha, reserva.hora_inicio)
+        reserva_fin = reserva_inicio + timedelta(hours=reserva.duracion_horas)
+
+        # Verificar si hay solapamiento
+        # Solapamiento existe si:
+        # - La nueva reserva empieza antes de que termine la existente Y
+        # - La nueva reserva termina después de que empiece la existente
+        if fecha_hora_inicio < reserva_fin and fecha_hora_fin > reserva_inicio:
+            reservas_conflictivas.append(
+                {
+                    "id": reserva.id,
+                    "codigo": reserva.codigo,
+                    "fecha": reserva.fecha.strftime("%Y-%m-%d"),
+                    "hora_inicio": reserva.hora_inicio.strftime("%H:%M"),
+                    "hora_fin": reserva_fin.strftime("%H:%M"),
+                    "duracion_horas": reserva.duracion_horas,
+                    "usuario": reserva.user.username if reserva.user else "Desconocido",
+                }
+            )
+
+    disponible = len(reservas_conflictivas) == 0
+    return disponible, reservas_conflictivas
 
 
 reservas_bp = Blueprint("reservas_bp", __name__, url_prefix="/api/reservas")
@@ -69,6 +150,29 @@ def crear_reserva():
         # Convertir fecha y hora
         fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
         hora_inicio = datetime.strptime(data["hora_inicio"], "%H:%M").time()
+        duracion = float(data["duracion"])
+
+        # ============================================
+        # 🔒 VALIDAR DISPONIBILIDAD DE LA ESTACIÓN
+        # ============================================
+        disponible, conflictos = verificar_disponibilidad_estacion(
+            estacion_id=data["estacion_id"],
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            duracion_horas=duracion,
+        )
+
+        if not disponible:
+            return (
+                jsonify(
+                    {
+                        "error": "Estación no disponible",
+                        "message": "Ya existe una reserva activa en el horario solicitado",
+                        "conflictos": conflictos,
+                    }
+                ),
+                409,
+            )  # 409 Conflict
 
         # Generar código único
         codigo_reserva = generar_codigo_reserva()
@@ -81,7 +185,7 @@ def crear_reserva():
             estacion_direccion=data.get("estacion_direccion", ""),
             fecha=fecha,
             hora_inicio=hora_inicio,
-            duracion_horas=float(data["duracion"]),
+            duracion_horas=duracion,
             estado="activa",
             codigo=codigo_reserva,
         )
@@ -112,7 +216,7 @@ def crear_reserva():
 
                 reserva_email = ReservaParaEmail(reserva)
 
-                # Enviar email (pero usamos tu código en lugar del generado por el servicio)
+                # Enviar email
                 success, mensaje, _ = email_service.enviar_confirmacion_reserva(
                     destinatario_email=user.email,
                     destinatario_nombre=user.username,
@@ -155,6 +259,46 @@ def crear_reserva():
         return jsonify({"error": f"Formato de fecha/hora inválido: {str(e)}"}), 400
     except Exception as e:
         db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# 🆕 NUEVO ENDPOINT: VERIFICAR DISPONIBILIDAD
+# ============================================
+@reservas_bp.route("/verificar-disponibilidad", methods=["POST"])
+def verificar_disponibilidad():
+    """
+    Endpoint para verificar disponibilidad sin crear la reserva.
+    Útil para validación en tiempo real en el frontend.
+    """
+    try:
+        data = request.get_json()
+
+        # Validar datos requeridos
+        required_fields = ["estacion_id", "fecha", "hora_inicio", "duracion"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Falta el campo: {field}"}), 400
+
+        # Convertir fecha y hora
+        fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+        hora_inicio = datetime.strptime(data["hora_inicio"], "%H:%M").time()
+        duracion = float(data["duracion"])
+
+        # Verificar disponibilidad
+        disponible, conflictos = verificar_disponibilidad_estacion(
+            estacion_id=data["estacion_id"],
+            fecha=fecha,
+            hora_inicio=hora_inicio,
+            duracion_horas=duracion,
+            reserva_id_excluir=data.get("reserva_id_excluir"),  # Para actualizar
+        )
+
+        return jsonify({"disponible": disponible, "conflictos": conflictos})
+
+    except ValueError as e:
+        return jsonify({"error": f"Formato de fecha/hora inválido: {str(e)}"}), 400
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
@@ -234,7 +378,7 @@ def cancelar_reserva(reserva_id):
 
 @reservas_bp.route("/<int:reserva_id>", methods=["PUT"])
 def actualizar_reserva(reserva_id):
-    """Actualizar una reserva existente"""
+    """Actualizar una reserva existente con validación de disponibilidad"""
     if "user_id" not in session:
         return jsonify({"error": "No autenticado"}), 401
 
@@ -248,12 +392,52 @@ def actualizar_reserva(reserva_id):
 
         data = request.get_json()
 
+        # Obtener valores actuales o nuevos
+        nueva_fecha = (
+            datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+            if "fecha" in data
+            else reserva.fecha
+        )
+        nueva_hora = (
+            datetime.strptime(data["hora_inicio"], "%H:%M").time()
+            if "hora_inicio" in data
+            else reserva.hora_inicio
+        )
+        nueva_duracion = (
+            float(data["duracion"]) if "duracion" in data else reserva.duracion_horas
+        )
+
+        # ============================================
+        # 🔒 VALIDAR DISPONIBILIDAD SI SE CAMBIA HORARIO
+        # ============================================
+        if "fecha" in data or "hora_inicio" in data or "duracion" in data:
+            disponible, conflictos = verificar_disponibilidad_estacion(
+                estacion_id=reserva.estacion_id,
+                fecha=nueva_fecha,
+                hora_inicio=nueva_hora,
+                duracion_horas=nueva_duracion,
+                reserva_id_excluir=reserva_id,  # Excluir esta misma reserva
+            )
+
+            if not disponible:
+                return (
+                    jsonify(
+                        {
+                            "error": "Estación no disponible",
+                            "message": "El nuevo horario se solapa con otra reserva",
+                            "conflictos": conflictos,
+                        }
+                    ),
+                    409,
+                )
+
+        # Actualizar campos
         if "fecha" in data:
-            reserva.fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+            reserva.fecha = nueva_fecha
         if "hora_inicio" in data:
-            reserva.hora_inicio = datetime.strptime(data["hora_inicio"], "%H:%M").time()
+            reserva.hora_inicio = nueva_hora
         if "duracion" in data:
-            reserva.duracion_horas = float(data["duracion"])
+            reserva.duracion_horas = nueva_duracion
         if "estado" in data:
             reserva.estado = data["estado"]
 
@@ -333,6 +517,43 @@ def reenviar_email_confirmacion(reserva_id):
                 return jsonify({"error": mensaje}), 500
         else:
             return jsonify({"error": "Envío de emails deshabilitado"}), 503
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================
+# 🆕 ENDPOINT ADICIONAL: VER RESERVAS POR ESTACIÓN
+# ============================================
+@reservas_bp.route("/estacion/<int:estacion_id>", methods=["GET"])
+def obtener_reservas_estacion(estacion_id):
+    """
+    Obtener todas las reservas activas de una estación específica
+    Útil para mostrar disponibilidad en el frontend
+    """
+    try:
+        # Parámetros opcionales
+        fecha_str = request.args.get("fecha")
+
+        query = Reserva.query.filter(
+            Reserva.estacion_id == estacion_id,
+            Reserva.estado.in_(["activa", "completada"]),
+        )
+
+        # Filtrar por fecha si se proporciona
+        if fecha_str:
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+            query = query.filter(Reserva.fecha == fecha)
+
+        reservas = query.order_by(Reserva.fecha, Reserva.hora_inicio).all()
+
+        return jsonify(
+            {
+                "estacion_id": estacion_id,
+                "total_reservas": len(reservas),
+                "reservas": [r.to_dict() for r in reservas],
+            }
+        )
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
