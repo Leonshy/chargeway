@@ -20,6 +20,7 @@ from routes.users_bp import users_bp
 from routes.admin_bp import admin_bp
 from routes.conectores_bp import conectores_bp
 from routes.vehiculos_bp import vehiculos_bp
+from routes.kiosk_bp import kiosk_bp  # 🆕 AGREGAR ESTA LÍNEA
 
 # Servicios
 from services.openchargemap import generar_mapa
@@ -28,6 +29,7 @@ from services.openchargemap import generar_mapa
 from models.user import User
 from models.reserva import Reserva
 from models.conectores import Connector
+
 
 def create_app():
     """
@@ -53,7 +55,7 @@ def create_app():
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(conectores_bp)
     app.register_blueprint(vehiculos_bp)
-
+    app.register_blueprint(kiosk_bp)  # 🆕 AGREGAR ESTA LÍNEA
 
     # ---------- RUTAS DIRECTAS ----------
 

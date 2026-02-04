@@ -1,0 +1,317 @@
+/* ============================================
+   📱 HEADER - ESTILOS PRINCIPALES
+   ============================================ */
+
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.header-container {
+    max-width: 100%;
+    height: 100%;
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ============================================
+   🎨 LOGO Y TÍTULO
+   ============================================ */
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: #00c853;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.header-logo:hover {
+    transform: scale(1.05);
+}
+
+.header-logo i {
+    font-size: 1.8rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.header-logo h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ============================================
+   🔘 NAVEGACIÓN Y BOTONES
+   ============================================ */
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.header-user-info i {
+    font-size: 1.2rem;
+    color: #00c853;
+}
+
+/* Botón base */
+.header-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.header-btn i {
+    font-size: 1rem;
+}
+
+.header-btn span {
+    white-space: nowrap;
+}
+
+.header-btn::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+}
+
+.header-btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.header-btn:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   🎨 ESTILOS ESPECÍFICOS POR BOTÓN
+   ============================================ */
+
+/* Botón Reservas */
+.btn-reservas {
+    background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.btn-reservas:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.5);
+}
+
+/* Botón Vehículos */
+.btn-vehiculos {
+    background: linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%);
+    box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
+}
+
+.btn-vehiculos:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.5);
+}
+
+/* Botón Info */
+.btn-info {
+    background: linear-gradient(135deg, #607d8b 0%, #78909c 100%);
+    box-shadow: 0 2px 8px rgba(96, 125, 139, 0.3);
+}
+
+.btn-info:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(96, 125, 139, 0.5);
+}
+
+/* 🆕 BOTÓN KIOSK DE ESTACIÓN */
+.btn-kiosk {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    position: relative;
+    animation: kioskGlow 3s infinite;
+}
+
+.btn-kiosk:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.5);
+    background: linear-gradient(135deg, #ff5252 0%, #ff6b6b 100%);
+}
+
+/* Efecto de brillo sutil para llamar la atención */
+@keyframes kioskGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 2px 15px rgba(255, 107, 107, 0.6);
+    }
+}
+
+/* Botón Admin */
+.btn-admin {
+    background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
+.btn-admin:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+}
+
+/* Botón Login */
+.btn-login {
+    background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+    box-shadow: 0 2px 8px rgba(0, 200, 83, 0.3);
+}
+
+.btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 200, 83, 0.5);
+}
+
+/* Botón Logout */
+.btn-logout {
+    background: linear-gradient(135deg, #f44336 0%, #e57373 100%);
+    box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.btn-logout:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.5);
+}
+
+/* ============================================
+   📱 RESPONSIVE DESIGN
+   ============================================ */
+
+/* Tablets y pantallas medianas */
+@media (max-width: 1024px) {
+    .header-btn span {
+        display: none;
+    }
+
+    .header-btn {
+        padding: 0.7rem;
+        width: 40px;
+        height: 40px;
+        justify-content: center;
+    }
+
+    .header-btn i {
+        font-size: 1.2rem;
+    }
+
+    .header-user-info span {
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+    .header-container {
+        padding: 0 1rem;
+    }
+
+    .header-logo h1 {
+        font-size: 1.2rem;
+    }
+
+    .header-logo i {
+        font-size: 1.5rem;
+    }
+
+    .header-nav {
+        gap: 0.5rem;
+    }
+
+    .header-user-info {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .header-btn {
+        padding: 0.6rem;
+        width: 36px;
+        height: 36px;
+    }
+
+    .header-btn i {
+        font-size: 1rem;
+    }
+}
+
+/* Pantallas muy pequeñas */
+@media (max-width: 480px) {
+    .header-user-info span {
+        display: none;
+    }
+
+    .header-nav {
+        gap: 0.3rem;
+    }
+
+    .header-btn {
+        padding: 0.5rem;
+        width: 32px;
+        height: 32px;
+    }
+}
