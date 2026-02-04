@@ -432,6 +432,65 @@ def delete_model_item(model_name, id):
         if not item:
             return jsonify({"error": "Registro no encontrado"}), 404
 
+        # ✅ PROTECCIÓN ESPECIAL PARA USUARIOS
+        if model_name == "users":
+            # No permitir eliminar el usuario actual (admin logueado)
+            current_user_id = session.get("user_id")
+            if item.id == current_user_id:
+                return jsonify({"error": "No puedes eliminarte a ti mismo"}), 400
+
+            # Verificar si el usuario tiene reservas activas
+            reservas_activas = Reserva.query.filter_by(
+                user_id=item.id, estado="activa"
+            ).count()
+
+            if reservas_activas > 0:
+                return jsonify({
+                    "error": f"No se puede eliminar. El usuario tiene {reservas_activas} reserva(s) activa(s). Cancela o completa las reservas primero."
+                }), 400
+
+            # Verificar todas las reservas (activas, completadas, canceladas)
+            total_reservas = Reserva.query.filter_by(user_id=item.id).count()
+
+            if total_reservas > 0:
+                # Opción 1: Eliminar las reservas en cascada
+                # Reserva.query.filter_by(user_id=item.id).delete()
+                
+                # Opción 2: Mejor - No permitir eliminar usuarios con historial
+                return jsonify({
+                    "error": f"No se puede eliminar. El usuario tiene {total_reservas} reserva(s) en el historial. Por seguridad, no se permite eliminar usuarios con reservas registradas."
+                }), 400
+
+            # Verificar si tiene vehículos registrados
+            vehiculos = VehiculoRegistrado.query.filter_by(user_id=item.id).count()
+            if vehiculos > 0:
+                # Eliminar vehículos registrados primero
+                VehiculoRegistrado.query.filter_by(user_id=item.id).delete()
+
+        # ✅ PROTECCIÓN ESPECIAL PARA ESTACIONES
+        if model_name == "stations":
+            # Verificar si la estación tiene reservas
+            reservas = Reserva.query.filter_by(estacion_id=item.id).count()
+            if reservas > 0:
+                return jsonify({
+                    "error": f"No se puede eliminar. La estación tiene {reservas} reserva(s) asociadas."
+                }), 400
+
+            # Verificar si tiene conectores
+            conectores = Connector.query.filter_by(estacion_id=item.id).count()
+            if conectores > 0:
+                # Eliminar conectores primero
+                Connector.query.filter_by(estacion_id=item.id).delete()
+
+        # ✅ PROTECCIÓN ESPECIAL PARA AUTOS
+        if model_name == "autos":
+            # Verificar si el auto está registrado por algún usuario
+            vehiculos_registrados = VehiculoRegistrado.query.filter_by(autos_id=item.id).count()
+            if vehiculos_registrados > 0:
+                return jsonify({
+                    "error": f"No se puede eliminar. El vehículo está registrado por {vehiculos_registrados} usuario(s)."
+                }), 400
+
         db.session.delete(item)
         db.session.commit()
 
@@ -439,7 +498,7 @@ def delete_model_item(model_name, id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Error al eliminar: {str(e)}"}), 500
 
 
 # ============================================

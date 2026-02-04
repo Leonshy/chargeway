@@ -94,7 +94,8 @@ function AdminPanel({ user, onClose }) {
       setStats(result);
     } catch (error) {
       console.error("Error cargando estadísticas:", error);
-      showAlert("Error al cargar estadísticas", "error");
+      // ✅ NO mostrar alerta al usuario, solo log en consola
+      // showAlert("Error al cargar estadísticas", "error");
     }
   };
 
@@ -136,6 +137,20 @@ function AdminPanel({ user, onClose }) {
   };
 
   const handleDelete = async (id) => {
+    // ✅ Protección: No permitir eliminar el usuario admin actual
+    if (currentModel === "usuarios") {
+      const itemToDelete = data.find(item => item.id === id);
+      if (itemToDelete && itemToDelete.id === user.id) {
+        showAlert("No puedes eliminarte a ti mismo", "error");
+        return;
+      }
+      if (itemToDelete && itemToDelete.role === "admin") {
+        if (!confirm("⚠️ ADVERTENCIA: Estás eliminando un usuario ADMINISTRADOR. ¿Estás completamente seguro?")) {
+          return;
+        }
+      }
+    }
+
     if (!confirm("¿Estás seguro de eliminar este registro?")) return;
 
     try {
@@ -146,15 +161,17 @@ function AdminPanel({ user, onClose }) {
 
       if (response.ok) {
         showAlert("Registro eliminado exitosamente", "success");
-        loadData();
-        loadStats();
-        loadModels();
+        await loadData();
+        // ✅ Cargar stats y modelos de forma segura sin bloquear la UI
+        loadStats().catch(err => console.error("Error cargando stats:", err));
+        loadModels().catch(err => console.error("Error cargando modelos:", err));
       } else {
         const result = await response.json();
         showAlert(result.error || "Error al eliminar", "error");
       }
     } catch (error) {
-      showAlert("Error al eliminar registro", "error");
+      console.error("Error al eliminar registro:", error);
+      showAlert("Error al eliminar registro: " + error.message, "error");
     }
   };
 
@@ -218,6 +235,10 @@ function AdminPanel({ user, onClose }) {
 
     const fields = Object.entries(modelConfig.fields).slice(0, 6);
 
+    // ✅ Verificar si es el usuario actual para deshabilitar el botón de eliminar
+    const isCurrentUser = currentModel === "usuarios" && item.id === user.id;
+    const isAdmin = currentModel === "usuarios" && item.role === "admin";
+
     return (
       <tr key={item.id}>
         {fields.map(([key, field]) => (
@@ -234,10 +255,20 @@ function AdminPanel({ user, onClose }) {
           <button
             className="btn-delete"
             onClick={() => handleDelete(item.id)}
-            title="Eliminar"
+            title={isCurrentUser ? "No puedes eliminarte a ti mismo" : "Eliminar"}
+            disabled={isCurrentUser}
+            style={{
+              opacity: isCurrentUser ? 0.5 : 1,
+              cursor: isCurrentUser ? "not-allowed" : "pointer"
+            }}
           >
             🗑️
           </button>
+          {isCurrentUser && (
+            <span style={{ fontSize: "0.7rem", color: "#666", marginLeft: "5px" }}>
+              (Tú)
+            </span>
+          )}
         </td>
       </tr>
     );
