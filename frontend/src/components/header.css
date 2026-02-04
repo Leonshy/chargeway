@@ -1,0 +1,384 @@
+/* ============================================
+   HEADER GENERAL
+   ============================================ */
+.header {
+  background: #000000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  padding: 0;
+}
+
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  max-width: 100%;
+  margin: 0 auto;
+  position: relative;
+  width: 100%;
+}
+
+/* ============================================
+   LADO IZQUIERDO (Hamburguesa + Logo)
+   ============================================ */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  z-index: 1002;
+  flex: 0 0 auto;
+}
+
+/* Botón Hamburguesa */
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 1003;
+  transition: all 0.3s ease;
+}
+
+.hamburger-btn span {
+  width: 28px;
+  height: 3px;
+  background-color: white;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.hamburger-btn:hover span {
+  background-color: #ffd700;
+}
+
+/* Animación del botón hamburguesa cuando está activo */
+.hamburger-btn.active span:nth-child(1) {
+  transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger-btn.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-btn.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
+}
+
+.header-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.15); /* Fondo original */
+  border-radius: 25px;
+  backdrop-filter: blur(10px);
+  
+  /* Propiedades de botón añadidas */
+  border: 1px solid transparent; /* Para evitar saltos al hacer hover */
+  cursor: pointer;
+  font-family: inherit; /* Heredar fuente */
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+/* Efecto Hover para indicar que es clicable */
+.header-user-info:hover {
+  background: rgba(255, 255, 255, 0.3); /* Más claro al pasar el mouse */
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.header-user-info:active {
+  transform: translateY(0);
+}
+
+.header-user-info i {
+  font-size: 1.5rem;
+  color: #ffd700;
+}
+
+.header-user-info span {
+  font-size: 1rem;
+}
+
+/* Ajuste responsive para móviles */
+@media (max-width: 768px) {
+  .header-user-info span {
+    display: none; /* Oculta el texto en pantallas pequeñas */
+  }
+
+  .header-user-info {
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  
+  .header-user-info i {
+    font-size: 1.2rem;
+    margin: 0;
+  }
+}
+
+/* Logo */
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+}
+
+.header-logo i {
+  font-size: 2rem;
+  color: #ffd700;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+.header-logo h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 1px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   MENÚ DESPLEGABLE
+   ============================================ */
+.dropdown-menu {
+  position: fixed;
+  top: 0;
+  left: -300px;
+  width: 280px;
+  height: 100vh;
+  background: #000000;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+  padding: 5rem 0 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: left 0.3s ease;
+  z-index: 1001;
+  overflow-y: auto;
+  border-right: 1px solid #333;
+}
+
+.dropdown-menu.open {
+  left: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.3s ease;
+  border-left: 4px solid transparent;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-left-color: #ffd700;
+  padding-left: 2rem;
+}
+
+.menu-item i {
+  font-size: 1.3rem;
+  width: 24px;
+  text-align: center;
+}
+
+.menu-item-admin {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin-top: 1rem;
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.menu-item-admin:hover {
+  background: rgba(255, 215, 0, 0.2);
+}
+
+/* Overlay para cerrar el menú */
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   LADO DERECHO (Usuario + Salir)
+   ============================================ */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  z-index: 1002;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.header-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 25px;
+  backdrop-filter: blur(10px);
+}
+
+.header-user-info i {
+  font-size: 1.5rem;
+  color: #ffd700;
+}
+
+.header-user-info span {
+  font-size: 1rem;
+}
+
+/* Botones del Header */
+.header-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  border: 2px solid white;
+  border-radius: 25px;
+  background: transparent;
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.header-btn:hover {
+  background: white;
+  color: #000000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.3);
+}
+
+.header-btn i {
+  font-size: 1.1rem;
+}
+
+.btn-logout {
+  background: rgba(255, 77, 77, 0.2);
+  border-color: #ff4d4d;
+}
+
+.btn-logout:hover {
+  background: #ff4d4d;
+  color: white;
+  border-color: #ff4d4d;
+}
+
+.btn-login {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #ffd700;
+}
+
+.btn-login:hover {
+  background: #ffd700;
+  color: #000000;
+  border-color: #ffd700;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+  .header-container {
+    padding: 0.8rem 1rem;
+  }
+
+  .header-logo h1 {
+    font-size: 1.4rem;
+  }
+
+  .header-logo i {
+    font-size: 1.6rem;
+  }
+
+  .dropdown-menu {
+    width: 250px;
+  }
+
+  .header-user-info span {
+    display: none;
+  }
+
+  .header-user-info {
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .header-btn span {
+    display: none;
+  }
+
+  .header-btn {
+    padding: 0.6rem;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  .header-btn i {
+    margin: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-logo h1 {
+    font-size: 1.2rem;
+  }
+
+  .dropdown-menu {
+    width: 220px;
+  }
+
+  .menu-item {
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+  }
+}

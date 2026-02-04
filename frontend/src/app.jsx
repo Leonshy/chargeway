@@ -1,0 +1,222 @@
+import React, { useState, useEffect } from "react";
+import Header from "./components/header";
+import Login from "./components/login";
+import MapComponent from "./components/mapComponent";
+import ReservaModal from "./components/reservaModal";
+import MisReservas from "./components/misReservas";
+import VehiculosEV from "./components/vehiculo";
+import AcercaDe from "./components/acercade";
+import AdminPanel from "./components/adminPanel";
+import StationKiosk from "./components/stationKiosk"; // 🆕 NUEVO
+import Perfil from "./components/perfil";
+
+function App() {
+  const [showLogin, setShowLogin] = useState(false);
+  const [showReservas, setShowReservas] = useState(false);
+  const [showVehiculos, setShowVehiculos] = useState(false);
+  const [showReservaModal, setShowReservaModal] = useState(false);
+  const [estacionSeleccionada, setEstacionSeleccionada] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showAcercaDe, setShowAcercaDe] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showKiosk, setShowKiosk] = useState(false); // 🆕 NUEVO
+  const [showPerfil, setShowPerfil] = useState(false); // 🆕 Estado para el modal
+
+  // Verificar si hay sesión activa al cargar
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  // Verificar si el usuario es admin
+  useEffect(() => {
+    if (user) {
+      checkAdminStatus();
+    }
+  }, [user]);
+
+  // Verificar autenticación
+  const checkAuth = async () => {
+    try {
+      const response = await fetch("/api/auth/check", {
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated) {
+          setUser(data.user);
+        } else {
+          // Intentar cargar desde localStorage
+          const savedUser = localStorage.getItem("user");
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error verificando autenticación:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verificar permisos de administrador
+  const checkAdminStatus = async () => {
+    try {
+      const response = await fetch("/api/admin/check-admin", {
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsAdmin(data.is_admin);
+      }
+    } catch (err) {
+      console.error("Error verificando permisos de admin:", err);
+      setIsAdmin(false);
+    }
+  };
+
+  // Manejar login exitoso
+  const handleLoginSuccess = (userData) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+    setShowLogin(false);
+    console.log("Usuario logueado:", userData);
+  };
+
+  // Manejar logout
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      setUser(null);
+      setIsAdmin(false);
+      localStorage.removeItem("user");
+      alert("Sesión cerrada correctamente");
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err);
+    }
+  };
+
+  // Manejar click en reservar
+  const handleReserveClick = (estacion) => {
+    setEstacionSeleccionada(estacion);
+    setShowReservaModal(true);
+  };
+
+  // Manejar éxito de reserva
+  const handleReservaSuccess = () => {
+    // Puedes agregar lógica adicional aquí si lo necesitas
+  };
+
+  // 🆕 Función para actualizar el estado local del usuario tras editar perfil
+  const handleProfileUpdate = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          fontSize: "1.2rem",
+          color: "#00c853"
+        }}
+      >
+        <i className="fa-solid fa-bolt"></i>
+        <span style={{ marginLeft: "0.5rem" }}>Cargando...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100vh", overflow: "hidden" }}>
+      <Header
+        onLoginClick={() => setShowLogin(true)}
+        onReservasClick={() => setShowReservas(true)}
+        onVehiculosClick={() => setShowVehiculos(true)}
+        onAcercaDeClick={() => setShowAcercaDe(true)}
+        onAdminClick={() => setShowAdmin(true)}
+        onKioskClick={() => setShowKiosk(true)} // 🆕 NUEVO
+        user={user}
+        onLogout={handleLogout}
+        isAdmin={isAdmin}
+        onPerfilClick={() => setShowPerfil(true)} // 🆕 Pasamos la función al Header
+      />
+
+      <section
+        style={{
+          position: "relative",
+          height: "calc(100vh - 60px)",
+          width: "100%",
+          overflow: "hidden"
+        }}
+      >
+        <MapComponent user={user} onReserveClick={handleReserveClick} />
+      </section>
+
+      {/* MODAL LOGIN */}
+      {showLogin && (
+        <Login
+          onClose={() => setShowLogin(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
+
+      {/* 🆕 MODAL DE PERFIL */}
+      {showPerfil && user && (
+        <Perfil 
+          user={user} 
+          onClose={() => setShowPerfil(false)} 
+          onUpdateSuccess={handleProfileUpdate}
+        />
+      )}
+      {/* MODAL RESERVA */}
+      {showReservaModal && estacionSeleccionada && (
+        <ReservaModal
+          estacion={estacionSeleccionada}
+          onClose={() => {
+            setShowReservaModal(false);
+            setEstacionSeleccionada(null);
+          }}
+          onSuccess={handleReservaSuccess}
+        />
+      )}
+
+      {/* MODAL MIS RESERVAS */}
+      {showReservas && user && (
+        <MisReservas user={user} onClose={() => setShowReservas(false)} />
+      )}
+
+      {/* MODAL MIS VEHÍCULOS */}
+      {showVehiculos && user && (
+        <VehiculosEV user={user} onClose={() => setShowVehiculos(false)} />
+      )}
+
+      {/* MODAL ACERCA DE */}
+      {showAcercaDe && <AcercaDe onClose={() => setShowAcercaDe(false)} />}
+
+      {/* MODAL PANEL DE ADMINISTRACIÓN */}
+      {showAdmin && user && isAdmin && (
+        <AdminPanel user={user} onClose={() => setShowAdmin(false)} />
+      )}
+
+      {/* 🆕 NUEVO: MODAL KIOSK DE ESTACIÓN */}
+      {showKiosk && (
+        <StationKiosk onClose={() => setShowKiosk(false)} />
+      )}
+    </div>
+  );
+}
+
+export default App;

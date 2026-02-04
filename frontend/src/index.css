@@ -1,0 +1,686 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background-color: #f4f4f5;
+  color: #333333;
+  line-height: 1.6;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Mejorar el comportamiento táctil */
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Evitar zoom accidental en inputs en iOS */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+textarea {
+  font-size: 16px;
+}
+
+header {
+  background-color: #111111;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  position: relative;
+  z-index: 50;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  height: 60px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo img {
+  width: 60px;
+  height: auto;
+}
+
+.logo h1 {
+  font-size: 1.5rem;
+  color: #00c853;
+}
+
+.header-right button {
+  font-family: 'Montserrat', sans-serif;
+  background-color: #00c853;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.header-right button:hover {
+  background-color: #00a844;
+  transform: scale(1.05);
+}
+
+.header-right button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.login-box {
+  background: rgb(255, 255, 255);
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-50px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-box h2 {
+  text-align: center;
+  color: #111;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.login-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-box input {
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: 'Montserrat', sans-serif;
+  transition: border-color 0.2s;
+}
+
+.login-box input:focus {
+  outline: none;
+  border-color: #00c853;
+}
+
+.login-btn {
+  font-family: 'Montserrat', sans-serif;
+  background-color: #00c853;
+  color: white;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  margin-top: 0.5rem;
+}
+
+.login-btn:hover:not(:disabled) {
+  background-color: #00a844;
+  transform: translateY(-2px);
+}
+
+.login-btn:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.switch-text {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.switch-text span {
+  color: #00c853;
+  cursor: pointer;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
+.switch-text span:hover {
+  color: #00a844;
+  text-decoration: underline;
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #c62828;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border-left: 4px solid #c62828;
+  font-size: 0.9rem;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-10px);
+  }
+
+  75% {
+    transform: translateX(10px);
+  }
+}
+
+.menu-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: transparent;
+  border: none;
+  width: 34px;
+  height: 28px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.menu-button span {
+  display: block;
+  height: 4px;
+  background-color: #ffffff;
+  border-radius: 3px;
+  transition: all 0.3s;
+}
+
+.menu-button:hover span {
+  background-color: #00c853;
+}
+
+header {
+  background-color: #111111;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  position: relative;
+  z-index: 1000; /* Aumentar de 50 a 1000 */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  height: 60px;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: 60px;
+  left: 1rem;
+  background-color: #222222;
+  color: #ffffff;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 1001; /* Aumentar a 1001 para estar por encima del header */
+  animation: slideDown 0.2s ease-out;
+  pointer-events: auto; /* Asegurar que capture eventos */
+}
+
+.menu-dropdown p {
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  margin: 0;
+  user-select: none; /* Evitar selección de texto accidental */
+}
+
+.menu-dropdown p:hover {
+  background-color: #333;
+}
+
+/* Asegurar que el mapa esté por debajo del header */
+#mapa {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  touch-action: pan-x pan-y;
+  z-index: 1; /* Agregar z-index bajo */
+}
+
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1; /* Asegurar que el mapa esté por debajo */
+}
+/* Asegurar que el mapa de Folium sea responsive */
+#mapa iframe,
+#mapa .folium-map {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+}
+
+/* Mejorar zoom y controles en móviles */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.leaflet-control-zoom,
+.leaflet-bar {
+  margin: 10px !important;
+}
+
+/* Hacer los controles del mapa más grandes en móviles */
+@media (max-width: 768px) {
+
+  .leaflet-control-zoom-in,
+  .leaflet-control-zoom-out {
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    font-size: 24px !important;
+  }
+
+  .leaflet-bar a {
+    width: 40px !important;
+    height: 40px !important;
+    line-height: 40px !important;
+  }
+}
+
+.find-station-button {
+  font-family: 'Montserrat', sans-serif;
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #00c853;
+  color: #ffffff;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: background-color 0.2s, transform 0.1s;
+  z-index: 20;
+}
+
+.find-station-button:hover {
+  background-color: #00a844;
+  transform: translateX(-50%) scale(1.05);
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE FIRST
+============================================ */
+
+/* Tablets y pantallas medianas (768px - 1024px) */
+@media (max-width: 1024px) {
+  header {
+    padding: 0.8rem 1.5rem;
+  }
+
+  .logo h1 {
+    font-size: 1.3rem;
+  }
+
+  .menu-dropdown {
+    left: 0.5rem;
+    padding: 0.8rem 1.5rem;
+  }
+
+  .find-station-button {
+    font-size: 1rem;
+    padding: 0.7rem 1.8rem;
+    bottom: 1.5rem;
+  }
+}
+
+/* Móviles grandes y tablets pequeñas (481px - 768px) */
+@media (max-width: 768px) {
+  header {
+    padding: 0.7rem 1rem;
+    height: 55px;
+  }
+
+  .header-left {
+    gap: 0.5rem;
+  }
+
+  .logo img {
+    width: 45px;
+  }
+
+  .logo h1 {
+    font-size: 1.2rem;
+  }
+
+  .header-right button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .header-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: flex-end;
+  }
+
+  .header-right span {
+    font-size: 0.85rem;
+  }
+
+  .menu-button {
+    width: 30px;
+    height: 24px;
+  }
+
+  .menu-button span {
+    height: 3px;
+  }
+
+  .menu-dropdown {
+    left: 0.5rem;
+    padding: 0.8rem 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  .login-box {
+    width: 95%;
+    padding: 1.5rem;
+    max-width: 380px;
+  }
+
+  .login-box h2 {
+    font-size: 1.3rem;
+  }
+
+  .login-box input {
+    padding: 0.65rem;
+    font-size: 0.95rem;
+  }
+
+  .login-btn {
+    padding: 0.65rem;
+    font-size: 0.95rem;
+  }
+
+  .find-station-button {
+    font-size: 0.95rem;
+    padding: 0.65rem 1.5rem;
+    bottom: 1rem;
+  }
+
+  #mapa {
+    height: calc(100vh - 55px);
+  }
+}
+
+/* Móviles (hasta 480px) */
+@media (max-width: 480px) {
+  header {
+    padding: 0.5rem 0.8rem;
+    height: 50px;
+  }
+
+  .header-left {
+    gap: 0.4rem;
+  }
+
+  .logo img {
+    width: 40px;
+  }
+
+  .logo h1 {
+    font-size: 1rem;
+  }
+
+  .header-right button {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+  }
+
+  .header-right span {
+    font-size: 0.75rem;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .menu-button {
+    width: 28px;
+    height: 22px;
+  }
+
+  .menu-dropdown {
+    width: calc(100vw - 2rem);
+    left: 0.5rem;
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .menu-dropdown p {
+    padding: 0.4rem;
+  }
+
+  .login-box {
+    width: 95%;
+    padding: 1.2rem;
+    max-width: 350px;
+  }
+
+  .login-box h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .login-box input {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .login-btn {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .close-btn {
+    top: 8px;
+    right: 8px;
+    font-size: 20px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .switch-text {
+    font-size: 0.85rem;
+  }
+
+  .error-message {
+    padding: 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .find-station-button {
+    font-size: 0.9rem;
+    padding: 0.55rem 1.2rem;
+    bottom: 0.8rem;
+    white-space: nowrap;
+  }
+
+  #mapa {
+    height: calc(100vh - 50px);
+  }
+}
+
+/* Móviles muy pequeños (hasta 360px) */
+@media (max-width: 360px) {
+  .logo h1 {
+    font-size: 0.9rem;
+  }
+
+  .header-right button {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .login-box {
+    padding: 1rem;
+  }
+
+  .login-box h2 {
+    font-size: 1.1rem;
+  }
+
+  .find-station-button {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Landscape mode (orientación horizontal) en móviles */
+@media (max-height: 500px) and (orientation: landscape) {
+  header {
+    height: 45px;
+    padding: 0.4rem 1rem;
+  }
+
+  .logo h1 {
+    font-size: 0.9rem;
+  }
+
+  .header-right button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .find-station-button {
+    bottom: 0.5rem;
+    font-size: 0.85rem;
+    padding: 0.4rem 1rem;
+  }
+
+  .login-box {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  #mapa {
+    height: calc(100vh - 45px);
+  }
+}
+
+/* Pantallas muy grandes (1440px+) */
+@media (min-width: 1440px) {
+  .container {
+    max-width: 1400px;
+  }
+
+  .logo h1 {
+    font-size: 1.7rem;
+  }
+
+  .find-station-button {
+    font-size: 1.2rem;
+    padding: 0.85rem 2.5rem;
+  }
+}
