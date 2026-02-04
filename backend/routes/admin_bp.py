@@ -86,6 +86,7 @@ MODELS_CONFIG = {
         "fields": {
             "id": {"label": "ID", "type": "number", "readonly": True},
             "codigo": {"label": "Código", "type": "text", "readonly": True},
+            "username": {"label": "Usuario", "type": "text", "readonly": True},  # 🆕 NUEVO
             "user_id": {"label": "ID Usuario", "type": "number", "required": True},
             "estacion_id": {"label": "ID Estación", "type": "number", "required": True},
             "estacion_nombre": {"label": "Estación", "type": "text"},
@@ -257,6 +258,10 @@ def get_model_data(model_name):
         # Query base
         query = model.query
 
+        # 🆕 AGREGAR USERNAME PARA RESERVAS
+        if model_name == "reservas":
+            query = query.join(User, Reserva.user_id == User.id).add_columns(User.username)
+
         # Búsqueda (busca en campos de texto)
         if search:
             # Buscar en campos relevantes según el modelo
@@ -273,6 +278,10 @@ def get_model_data(model_name):
                 search_filters.append(model.marca.ilike(f"%{search}%"))
             if hasattr(model, "modelo"):
                 search_filters.append(model.modelo.ilike(f"%{search}%"))
+            
+            # 🆕 Para reservas, buscar también por username
+            if model_name == "reservas":
+                search_filters.append(User.username.ilike(f"%{search}%"))
 
             if search_filters:
                 from sqlalchemy import or_
@@ -293,19 +302,57 @@ def get_model_data(model_name):
         # Convertir a diccionarios
         data = []
         for item in pagination.items:
-            if hasattr(item, "to_dict"):
-                data.append(item.to_dict())
-            else:
-                # Fallback: convertir manualmente
-                item_dict = {}
-                for column in inspect(item.__class__).columns:
-                    value = getattr(item, column.name)
-                    if isinstance(value, datetime):
-                        value = value.strftime("%Y-%m-%d %H:%M:%S")
-                    elif isinstance(value, (list, dict)):
-                        value = str(value)
-                    item_dict[column.name] = value
+            # 🆕 Si es reserva, viene como tupla (reserva, username)
+            if model_name == "reservas":
+                reserva_obj = item[0]
+                username = item[1]
+                
+                if hasattr(reserva_obj, "to_dict"):
+                    item_dict = reserva_obj.to_dict()
+                else:
+                    item_dict = {}
+                    for column in inspect(reserva_obj.__class__).columns:
+                        value = getattr(reserva_obj, column.name)
+                        if isinstance(value, datetime):
+                            value = value.strftime("%Y-%m-%d %H:%M:%S")
+                        elif isinstance(value, (list, dict)):
+                            value = str(value)
+                        item_dict[column.name] = value
+                
+                # 🆕 AGREGAR USERNAME
+                item_dict["username"] = username
                 data.append(item_dict)
+                
+            # 🆕 Si es usuarios, asegurarse de incluir el role
+            elif model_name == "users":
+                if hasattr(item, "to_dict"):
+                    item_dict = item.to_dict(include_role=True)
+                else:
+                    item_dict = {}
+                    for column in inspect(item.__class__).columns:
+                        value = getattr(item, column.name)
+                        if isinstance(value, datetime):
+                            value = value.strftime("%Y-%m-%d %H:%M:%S")
+                        elif isinstance(value, (list, dict)):
+                            value = str(value)
+                        item_dict[column.name] = value
+                data.append(item_dict)
+                
+            else:
+                # Comportamiento normal para otros modelos
+                if hasattr(item, "to_dict"):
+                    data.append(item.to_dict())
+                else:
+                    # Fallback: convertir manualmente
+                    item_dict = {}
+                    for column in inspect(item.__class__).columns:
+                        value = getattr(item, column.name)
+                        if isinstance(value, datetime):
+                            value = value.strftime("%Y-%m-%d %H:%M:%S")
+                        elif isinstance(value, (list, dict)):
+                            value = str(value)
+                        item_dict[column.name] = value
+                    data.append(item_dict)
 
         return jsonify(
             {
@@ -319,37 +366,6 @@ def get_model_data(model_name):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@admin_bp.route("/data/<model_name>/<int:id>", methods=["GET"])
-@admin_required
-def get_model_item(model_name, id):
-    """Obtener un registro específico"""
-    if model_name not in MODELS_CONFIG:
-        return jsonify({"error": "Modelo no encontrado"}), 404
-
-    try:
-        model = MODELS_CONFIG[model_name]["model"]
-        item = model.query.get(id)
-
-        if not item:
-            return jsonify({"error": "Registro no encontrado"}), 404
-
-        if hasattr(item, "to_dict"):
-            return jsonify(item.to_dict())
-        else:
-            # Fallback manual
-            item_dict = {}
-            for column in inspect(item.__class__).columns:
-                value = getattr(item, column.name)
-                if isinstance(value, datetime):
-                    value = value.strftime("%Y-%m-%d %H:%M:%S")
-                item_dict[column.name] = value
-            return jsonify(item_dict)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 
 @admin_bp.route("/data/<model_name>", methods=["POST"])
 @admin_required
